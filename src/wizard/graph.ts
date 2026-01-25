@@ -13,15 +13,17 @@ export function createWizardGraph(): WizardGraph {
  * Registers a node in the wizard graph
  */
 export function registerNode(graph: WizardGraph, node: WizardNode): void {
-	if (graph.nodes.has(node.page)) {
-		throw new Error(`Node with page "${node.page}" already exists in graph`);
+	if (graph.nodes.has(node.currentPage)) {
+		throw new Error(
+			`Node with currentPage "${node.currentPage}" already exists in graph`,
+		);
 	}
 
-	graph.nodes.set(node.page, node);
+	graph.nodes.set(node.currentPage, node);
 
 	// Set as entry point if it's the first node
 	if (!graph.entryPoint) {
-		graph.entryPoint = node.page;
+		graph.entryPoint = node.currentPage;
 	}
 }
 
@@ -87,17 +89,17 @@ export function resolveNextPage(
 	node: WizardNode,
 	state: WizardState,
 ): string | string[] | null {
-	if (!node.next) {
+	if (!node.nextPage) {
 		return null;
 	}
 
 	// If it's a function, evaluate it with current state
-	if (typeof node.next === "function") {
-		return node.next(state);
+	if (typeof node.nextPage === "function") {
+		return node.nextPage(state);
 	}
 
 	// Otherwise, return the string or array directly
-	return node.next;
+	return node.nextPage;
 }
 
 /**
@@ -237,24 +239,31 @@ export function getPreviousNonSkippedPage(
 		return null;
 	}
 
-	if (!node.previous) {
+	if (!node.previousPageFallback) {
 		return null;
 	}
 
 	// Validate that the previous page exists
-	if (!graph.nodes.has(node.previous)) {
-		console.warn(`Previous page "${node.previous}" does not exist in graph`);
+	if (!graph.nodes.has(node.previousPageFallback)) {
+		console.warn(
+			`Previous page "${node.previousPageFallback}" does not exist in graph`,
+		);
 		return null;
 	}
 
 	// Check if previous page should be skipped
-	if (shouldSkipStep(graph, node.previous, state)) {
+	if (shouldSkipStep(graph, node.previousPageFallback, state)) {
 		// Recursively check the previous page
-		return getPreviousNonSkippedPage(graph, node.previous, state, visited);
+		return getPreviousNonSkippedPage(
+			graph,
+			node.previousPageFallback,
+			state,
+			visited,
+		);
 	}
 
 	// Previous page should not be skipped, return it
-	return node.previous;
+	return node.previousPageFallback;
 }
 
 /**
@@ -271,14 +280,14 @@ export function getPreviousPage(
 		return null;
 	}
 
-	if (!currentNode.previous) {
+	if (!currentNode.previousPageFallback) {
 		return null;
 	}
 
 	// Validate that the previous page exists
-	if (!graph.nodes.has(currentNode.previous)) {
+	if (!graph.nodes.has(currentNode.previousPageFallback)) {
 		console.warn(
-			`Previous page "${currentNode.previous}" does not exist in graph`,
+			`Previous page "${currentNode.previousPageFallback}" does not exist in graph`,
 		);
 		return null;
 	}
@@ -303,16 +312,21 @@ export function validateGraph(graph: WizardGraph): {
 
 	// Validate all node references
 	for (const [page, node] of graph.nodes.entries()) {
-		// Check previous reference
-		if (node.previous && !graph.nodes.has(node.previous)) {
+		// Check previousPageFallback reference
+		if (
+			node.previousPageFallback &&
+			!graph.nodes.has(node.previousPageFallback)
+		) {
 			errors.push(
-				`Node "${page}" references non-existent previous page "${node.previous}"`,
+				`Node "${page}" references non-existent previous page "${node.previousPageFallback}"`,
 			);
 		}
 
-		// Check next references (for string/array cases)
-		if (node.next && typeof node.next !== "function") {
-			const nextPages = Array.isArray(node.next) ? node.next : [node.next];
+		// Check nextPage references (for string/array cases)
+		if (node.nextPage && typeof node.nextPage !== "function") {
+			const nextPages = Array.isArray(node.nextPage)
+				? node.nextPage
+				: [node.nextPage];
 			for (const nextPage of nextPages) {
 				if (!graph.nodes.has(nextPage)) {
 					errors.push(
@@ -349,15 +363,17 @@ export function getPagesInOrder(graph: WizardGraph): string[] {
 		}
 
 		// Visit previous first (if exists)
-		if (node.previous) {
-			visit(node.previous);
+		if (node.previousPageFallback) {
+			visit(node.previousPageFallback);
 		}
 
 		result.push(page);
 
 		// Visit next pages
-		if (node.next && typeof node.next !== "function") {
-			const nextPages = Array.isArray(node.next) ? node.next : [node.next];
+		if (node.nextPage && typeof node.nextPage !== "function") {
+			const nextPages = Array.isArray(node.nextPage)
+				? node.nextPage
+				: [node.nextPage];
 			for (const nextPage of nextPages) {
 				visit(nextPage);
 			}

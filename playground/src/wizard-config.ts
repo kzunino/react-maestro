@@ -11,30 +11,28 @@ enum Page {
 
 const nodes: WizardNode[] = [
 	{
-		page: Page.PageA,
-		next: Page.PageB,
+		currentPage: Page.PageA,
+		nextPage: Page.PageB,
 	},
 	{
-		page: Page.PageB,
-		previous: Page.PageA,
-		next: (state) => {
+		currentPage: Page.PageB,
+		nextPage: (state) => {
 			if (state.userType === "premium") return Page.PageE;
 			return Page.PageC;
 		},
 	},
 	{
-		page: Page.PageC,
-		previous: Page.PageB,
-		next: Page.PageD,
+		currentPage: Page.PageC,
+		previousPageFallback: Page.PageB,
+		nextPage: Page.PageD,
 	},
 	{
-		page: Page.PageD,
-		previous: Page.PageC,
+		currentPage: Page.PageD,
+		previousPageFallback: Page.PageC,
 	},
 	{
-		page: Page.PageE,
-		previous: Page.PageB,
-		next: Page.PageD,
+		currentPage: Page.PageE,
+		nextPage: Page.PageD,
 	},
 ];
 

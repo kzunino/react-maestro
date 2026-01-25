@@ -13,33 +13,25 @@ type ComponentLoader = () => Promise<{
 type NextPageResolver<TState = WizardState> = string | string[] | ((state: TState) => string | string[] | null);
 /**
  * Wizard node definition
- * @template TState - The type of state for this page (used to type the `next` and `shouldSkip` functions)
+ * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
  */
 type WizardNode<TState = WizardState> = {
     /**
      * Unique identifier for this page/step
      */
-    page: string;
+    currentPage: string;
     /**
-     * Optional form data shape (plain object) - used for documentation/typing
-     * This is metadata only; the library doesn't validate against it
+     * Determines the next page(s) to navigate to.
+     * Can be a string, array of strings, or a function that evaluates state.
+     * The state parameter is typed as TState.
      */
-    form?: Record<string, unknown>;
+    nextPage?: NextPageResolver<TState>;
     /**
-     * Optional state context shape (plain object) - used for documentation/typing
-     * This is metadata only; the library doesn't validate against it
+     * Optional previous page identifier. Used as fallback for hasPrevious and
+     * when resolving previous non-skipped pages. Back navigation uses browser
+     * history by default.
      */
-    stateContext?: Record<string, unknown>;
-    /**
-     * Determines the next page(s) to navigate to
-     * Can be a string, array of strings, or a function that evaluates state
-     * The state parameter is typed as TState
-     */
-    next?: NextPageResolver<TState>;
-    /**
-     * Optional previous page identifier for back navigation
-     */
-    previous?: string;
+    previousPageFallback?: string;
     /**
      * Optional function to determine if this step should be skipped
      * Returns true if the step should be skipped based on current state

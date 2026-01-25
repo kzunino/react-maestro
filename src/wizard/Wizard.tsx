@@ -384,7 +384,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		const currentNode = getNode(graph, currentPage);
 		let directNext: string | null = null;
 		if (currentNode) {
-			const resolved = currentNode.next;
+			const resolved = currentNode.nextPage;
 			if (typeof resolved === "string") {
 				directNext = resolved;
 			} else if (Array.isArray(resolved) && resolved.length > 0) {
