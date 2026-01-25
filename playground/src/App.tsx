@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import type { WizardGraph, WizardNode } from "react-maestro";
 import {
+	createPathParamsAdapter,
 	createWizardGraphFromNodes,
 	definePageSchema,
 	Wizard,
 } from "react-maestro";
+import Landing from "./pages/Landing";
 
 // Define typed schema for page A with multiple fields
 const pageASchema = definePageSchema({
@@ -114,7 +117,100 @@ const componentLoaders = new Map([
 
 const PAGE_WIDTH = "40rem";
 
+// Determine which route pattern to use based on current pathname
+function getRouteConfig() {
+	const pathname = window.location.pathname;
+
+	// Pattern 1: /[id]/page/[page]
+	// Example: /test123/page/pageA
+	const pattern1Match = pathname.match(/^\/([^/]+)\/page\/([^/]+)$/);
+	if (pattern1Match) {
+		return {
+			type: "pattern1" as const,
+			adapter: createPathParamsAdapter({
+				template: "/[id]/page/[page]",
+			}),
+			pageParamName: "page",
+			uuidParamName: "id",
+		};
+	}
+
+	// Pattern 2: /[id]/[type]/[someOtherOptions]/[page]
+	// Example: /xyz789/premium/feature1/pageA
+	const pattern2Match = pathname.match(
+		/^\/([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)$/,
+	);
+	if (pattern2Match) {
+		return {
+			type: "pattern2" as const,
+			adapter: createPathParamsAdapter({
+				template: "/[id]/[type]/[someOtherOptions]/[page]",
+			}),
+			pageParamName: "page",
+			uuidParamName: "id",
+		};
+	}
+
+	// Default: Query params
+	return {
+		type: "query" as const,
+		adapter: undefined, // Uses default browserUrlParamsAdapter
+		pageParamName: "page",
+		uuidParamName: "id",
+	};
+}
+
 export default function App() {
+	const [routeConfig, setRouteConfig] = useState(() => getRouteConfig());
+	const [showLanding, setShowLanding] = useState(() => {
+		const pathname = window.location.pathname;
+		const search = window.location.search;
+		// Show landing only if path is "/" and no query params
+		return (pathname === "/" || pathname === "") && !search;
+	});
+
+	// Listen for navigation changes
+	useEffect(() => {
+		const handlePopState = () => {
+			const pathname = window.location.pathname;
+			const search = window.location.search;
+			setShowLanding((pathname === "/" || pathname === "") && !search);
+			setRouteConfig(getRouteConfig());
+		};
+
+		// Also listen for custom route change events
+		const handleRouteChange = () => {
+			const pathname = window.location.pathname;
+			const search = window.location.search;
+			setShowLanding((pathname === "/" || pathname === "") && !search);
+			setRouteConfig(getRouteConfig());
+		};
+
+		window.addEventListener("popstate", handlePopState);
+		window.addEventListener("routechange", handleRouteChange);
+		return () => {
+			window.removeEventListener("popstate", handlePopState);
+			window.removeEventListener("routechange", handleRouteChange);
+		};
+	}, []);
+
+	if (showLanding) {
+		return (
+			<div className="w-full">
+				<div
+					style={{
+						width: PAGE_WIDTH,
+						maxWidth: "100%",
+						marginLeft: "auto",
+						marginRight: "auto",
+					}}
+				>
+					<Landing />
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="w-full">
 			<div
@@ -125,10 +221,32 @@ export default function App() {
 					marginRight: "auto",
 				}}
 			>
+				<div className="mb-4 p-2 bg-gray-100 rounded text-sm">
+					<strong>Route:</strong>{" "}
+					{routeConfig.type === "query" && "Query Params"}
+					{routeConfig.type === "pattern1" && "/[id]/page/[page]"}
+					{routeConfig.type === "pattern2" &&
+						"/[id]/[type]/[someOtherOptions]/[page]"}
+					{" | "}
+					<button
+						type="button"
+						onClick={() => {
+							window.history.pushState({}, "", "/");
+							window.dispatchEvent(new PopStateEvent("popstate"));
+							window.dispatchEvent(new CustomEvent("routechange"));
+						}}
+						className="text-blue-600 hover:underline"
+					>
+						← Back to Landing
+					</button>
+				</div>
 				<Wizard
 					graph={graph}
 					config={{
 						componentLoaders,
+						urlParamsAdapter: routeConfig.adapter,
+						pageParamName: routeConfig.pageParamName,
+						uuidParamName: routeConfig.uuidParamName,
 						loadingFallback: <div />,
 						unknownPageFallback: <div>Page not found</div>,
 					}}

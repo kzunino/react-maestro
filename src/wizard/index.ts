@@ -27,6 +27,7 @@ export {
 	useWizardSkip,
 	useWizardState,
 	useWizardStateBatch,
+	useWizardUrlParams,
 } from "@/wizard/hooks";
 // Presenter
 export {

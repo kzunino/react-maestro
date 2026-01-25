@@ -134,3 +134,12 @@ export function useWizardSkip() {
 	const { skipCurrentPage } = useWizardContext();
 	return skipCurrentPage;
 }
+
+/**
+ * Hook to access arbitrary URL params (query or path, depending on config).
+ * Use this to read params like id, type, someOtherOptions, etc.
+ */
+export function useWizardUrlParams() {
+	const { getUrlParam, getAllUrlParams, urlParams } = useWizardContext();
+	return { getUrlParam, getAllUrlParams, urlParams };
+}

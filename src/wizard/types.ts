@@ -215,4 +215,20 @@ export type WizardContextValue = {
 	 * The user is responsible for handling navigation/redirect after calling this
 	 */
 	completeWizard: () => void;
+
+	/**
+	 * Get a single URL parameter (query or path, depending on adapter).
+	 * Use this to read arbitrary params like id, type, someOtherOptions, etc.
+	 */
+	getUrlParam: (key: string) => string | null;
+
+	/**
+	 * Get all URL parameters as a record.
+	 */
+	getAllUrlParams: () => Record<string, string>;
+
+	/**
+	 * Reactive snapshot of all URL params (updates on navigation).
+	 */
+	urlParams: Record<string, string>;
 };

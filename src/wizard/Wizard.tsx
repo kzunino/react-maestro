@@ -554,6 +554,9 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			hasPrevious,
 			skipCurrentPage,
 			completeWizard,
+			getUrlParam: urlParams.getParam,
+			getAllUrlParams: urlParams.getAllParams,
+			urlParams: urlParams.params,
 		}),
 		[
 			currentPage,
@@ -570,6 +573,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			hasPrevious,
 			skipCurrentPage,
 			completeWizard,
+			urlParams,
 		],
 	);
 
