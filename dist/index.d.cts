@@ -2,10 +2,6 @@ import * as react_jsx_runtime from 'react/jsx-runtime';
 import * as react from 'react';
 
 /**
- * JSON Schema type definition (plain object, no validation library)
- */
-type JSONSchema = Record<string, unknown>;
-/**
  * Component loader function for lazy loading page components
  */
 type ComponentLoader = () => Promise<{
@@ -14,32 +10,32 @@ type ComponentLoader = () => Promise<{
 /**
  * Next page resolver - can be a string, array of strings, or a function
  */
-type NextPageResolver = string | string[] | ((state: WizardState) => string | string[] | null);
+type NextPageResolver<TState = WizardState> = string | string[] | ((state: TState) => string | string[] | null);
 /**
  * Wizard node definition
+ * @template TState - The type of state for this page (used to type the `next` and `shouldSkip` functions)
  */
-type WizardNode = {
+type WizardNode<TState = WizardState> = {
     /**
      * Unique identifier for this page/step
      */
     page: string;
     /**
-     * Optional JSON Schema for UI configuration
+     * Optional form data shape (plain object) - used for documentation/typing
+     * This is metadata only; the library doesn't validate against it
      */
-    uiSchema?: JSONSchema;
+    form?: Record<string, unknown>;
     /**
-     * JSON Schema for form validation
+     * Optional state context shape (plain object) - used for documentation/typing
+     * This is metadata only; the library doesn't validate against it
      */
-    form: JSONSchema;
-    /**
-     * JSON Schema defining the context/state shape for this step
-     */
-    schemaContext: JSONSchema;
+    stateContext?: Record<string, unknown>;
     /**
      * Determines the next page(s) to navigate to
      * Can be a string, array of strings, or a function that evaluates state
+     * The state parameter is typed as TState
      */
-    next?: NextPageResolver;
+    next?: NextPageResolver<TState>;
     /**
      * Optional previous page identifier for back navigation
      */
@@ -48,8 +44,9 @@ type WizardNode = {
      * Optional function to determine if this step should be skipped
      * Returns true if the step should be skipped based on current state
      * Skipped steps are automatically bypassed and removed from browser history
+     * The state parameter is typed as TState
      */
-    shouldSkip?: (state: WizardState) => boolean;
+    shouldSkip?: (state: TState) => boolean;
 };
 /**
  * Accumulated wizard state from all steps
@@ -268,11 +265,11 @@ declare function useWizardPageStateByPage(page: string): WizardState;
 /**
  * Hook to get the current node definition
  */
-declare function useWizardCurrentNode(): WizardNode | undefined;
+declare function useWizardCurrentNode(): WizardNode<WizardState> | undefined;
 /**
  * Hook to get a node by page identifier
  */
-declare function useWizardNode(page: string): WizardNode | undefined;
+declare function useWizardNode(page: string): WizardNode<WizardState> | undefined;
 /**
  * Hook to skip the current page and navigate to the next non-skipped page
  * This is useful for conditional skipping based on async checks (API calls, etc.)
@@ -391,51 +388,27 @@ declare function createPathParamsAdapter(config: PathConfig): UrlParamsAdapter;
 declare function createPathParamsAdapterFromProps(_pathParams: Record<string, string | string[]> | Promise<Record<string, string | string[]>>, config: PathConfig): UrlParamsAdapter;
 
 /**
- * Type helpers for converting JSON Schema to TypeScript types
+ * Helper to create a wizard node with typed state from a plain object.
+ * The state type is inferred from the stateContext object.
+ *
+ * @example
+ * const node = createWizardNode({
+ *   page: "page1",
+ *   stateContext: { name: "", age: 0 },
+ *   next: (state) => {
+ *     // state.name and state.age are properly typed
+ *     return "page2";
+ *   },
+ * });
  */
-/**
- * JSON Schema property definition
- */
-type JSONSchemaProperty = {
-    type?: string;
-    enum?: readonly unknown[];
-    items?: JSONSchemaProperty;
-    properties?: Record<string, JSONSchemaProperty>;
-    required?: string[];
-};
-/**
- * Converts a JSON Schema type string to a TypeScript type
- */
-type SchemaTypeToTS<T extends string | undefined> = T extends "string" ? string : T extends "number" ? number : T extends "integer" ? number : T extends "boolean" ? boolean : T extends "array" ? unknown[] : T extends "object" ? Record<string, unknown> : unknown;
-/**
- * Extracts TypeScript type from a JSON Schema property
- */
-type ExtractTypeFromSchema<T extends JSONSchemaProperty> = "enum" extends keyof T ? T["enum"] extends readonly (infer E)[] ? E : unknown : "type" extends keyof T ? T["type"] extends string ? SchemaTypeToTS<T["type"]> : unknown : "items" extends keyof T ? T["items"] extends JSONSchemaProperty ? ExtractTypeFromSchema<T["items"]>[] : unknown[] : unknown;
-/**
- * Extracts TypeScript types from a JSON Schema object
- */
-type SchemaToType<T extends {
-    type: "object";
-    properties?: Record<string, JSONSchemaProperty>;
-}> = T["properties"] extends Record<string, JSONSchemaProperty> ? {
-    [K in keyof T["properties"]]: ExtractTypeFromSchema<T["properties"][K]>;
-} : Record<string, unknown>;
-/**
- * Helper to define a typed schema for a wizard page
- * This ensures the schemaContext matches the TypeScript type
- */
-declare function definePageSchema<T extends {
-    type: "object";
-    properties: Record<string, JSONSchemaProperty>;
-}>(schema: T): T & {
-    __type: SchemaToType<T>;
-};
-/**
- * Type helper to extract the state type from a schema
- */
-type PageStateType<T extends {
-    __type: unknown;
-}> = T["__type"];
+declare function createWizardNode<TStateContext extends Record<string, unknown>, TNode extends {
+    page: string;
+    form?: Record<string, unknown>;
+    stateContext?: TStateContext;
+    next?: (state: TStateContext & WizardState) => string | string[] | null;
+    previous?: string;
+    shouldSkip?: (state: TStateContext & WizardState) => boolean;
+}>(node: TNode): WizardNode;
 
 /**
  * Manager for wizard state stored in session storage
@@ -574,4 +547,4 @@ declare const WizardContext: react.Context<WizardContextValue | null>;
  */
 declare function useWizardContext(): WizardContextValue;
 
-export { type JSONSchema, type NextPageResolver, type PageStateType, type PathConfig, Presenter, type PresenterProps, type SchemaToType, type UrlParamsAdapter, Wizard, type WizardConfig, WizardContext, type WizardContextValue, type WizardGraph, type WizardNode, type WizardProps, type WizardState, WizardStateManager, createPathParamsAdapter, createPathParamsAdapterFromProps, createWizardGraph, createWizardGraphFromNodes, defaultStateManager, definePageSchema, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, registerNode, resolveNextPage, shouldSkipStep, useUrlParams, useWizard, useWizardContext, useWizardCurrentNode, useWizardNavigation, useWizardNode, useWizardPageState, useWizardPageStateByPage, useWizardSkip, useWizardState, useWizardStateBatch, useWizardUrlParams, validateGraph };
+export { type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, Wizard, type WizardConfig, WizardContext, type WizardContextValue, type WizardGraph, type WizardNode, type WizardProps, type WizardState, WizardStateManager, createPathParamsAdapter, createPathParamsAdapterFromProps, createWizardGraph, createWizardGraphFromNodes, createWizardNode, defaultStateManager, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, registerNode, resolveNextPage, shouldSkipStep, useUrlParams, useWizard, useWizardContext, useWizardCurrentNode, useWizardNavigation, useWizardNode, useWizardPageState, useWizardPageStateByPage, useWizardSkip, useWizardState, useWizardStateBatch, useWizardUrlParams, validateGraph };

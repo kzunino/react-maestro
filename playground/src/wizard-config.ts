@@ -1,86 +1,46 @@
 import type { WizardGraph, WizardNode } from "react-maestro";
-import {
-	createWizardGraphFromNodes,
-	definePageSchema,
-} from "react-maestro";
-
-const pageASchema = definePageSchema({
-	type: "object",
-	properties: {
-		name: { type: "string" },
-		age: { type: "number" },
-		address: { type: "string" },
-	},
-});
+import { createWizardGraphFromNodes } from "react-maestro";
 
 const nodes: WizardNode[] = [
 	{
 		page: "pageA",
-		form: pageASchema,
-		schemaContext: pageASchema,
+		form: { name: "", age: 0, address: "" },
+		stateContext: { name: "", age: 0, address: "" },
 		next: "pageB",
 	},
 	{
 		page: "pageB",
-		form: {
-			type: "object",
-			properties: {
-				email: { type: "string" },
-				userType: { type: "string" },
-			},
-		},
-		schemaContext: {
-			type: "object",
-			properties: {
-				email: { type: "string" },
-				userType: { type: "string" },
-			},
-		},
+		form: { email: "", userType: "" },
+		stateContext: { email: "", userType: "" },
 		previous: "pageA",
 		next: (state) => {
-			const userType = state.userType as string | undefined;
-			if (userType === "premium") return "pageE";
+			if (state.userType === "premium") return "pageE";
 			return "pageC";
 		},
 	},
 	{
 		page: "pageC",
-		form: { type: "object", properties: {} },
-		schemaContext: { type: "object", properties: {} },
+		form: {},
+		stateContext: {},
 		previous: "pageB",
 		next: "pageD",
 	},
 	{
 		page: "pageD",
-		form: {
-			type: "object",
-			properties: { confirm: { type: "boolean" } },
-		},
-		schemaContext: {
-			type: "object",
-			properties: { confirm: { type: "boolean" } },
-		},
+		form: { confirm: false },
+		stateContext: { confirm: false },
 		previous: "pageC",
 	},
 	{
 		page: "pageE",
-		form: {
-			type: "object",
-			properties: { premiumFeature: { type: "string" } },
-		},
-		schemaContext: {
-			type: "object",
-			properties: { premiumFeature: { type: "string" } },
-		},
+		form: { premiumFeature: "" },
+		stateContext: { premiumFeature: "" },
 		previous: "pageB",
 		next: "pageD",
 	},
 ];
 
-export const graph: WizardGraph = createWizardGraphFromNodes(
-	nodes,
-	"pageA",
-);
+export const graph: WizardGraph = createWizardGraphFromNodes(nodes, "pageA");
 
 export const componentLoaders = new Map([
 	["pageA", () => import("./pages/PageA")],

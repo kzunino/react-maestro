@@ -534,8 +534,8 @@ function createPathParamsAdapterFromProps(_pathParams, config) {
 }
 
 // src/wizard/schema-types.ts
-function definePageSchema(schema) {
-  return schema;
+function createWizardNode(node) {
+  return node;
 }
 
 // src/wizard/state.ts
@@ -1158,8 +1158,8 @@ export {
   createPathParamsAdapterFromProps,
   createWizardGraph,
   createWizardGraphFromNodes,
+  createWizardNode,
   defaultStateManager,
-  definePageSchema,
   getAllNextPages,
   getNextNonSkippedPage,
   getNextPage,

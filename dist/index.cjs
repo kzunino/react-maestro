@@ -28,8 +28,8 @@ __export(index_exports, {
   createPathParamsAdapterFromProps: () => createPathParamsAdapterFromProps,
   createWizardGraph: () => createWizardGraph,
   createWizardGraphFromNodes: () => createWizardGraphFromNodes,
+  createWizardNode: () => createWizardNode,
   defaultStateManager: () => defaultStateManager,
-  definePageSchema: () => definePageSchema,
   getAllNextPages: () => getAllNextPages,
   getNextNonSkippedPage: () => getNextNonSkippedPage,
   getNextPage: () => getNextPage,
@@ -592,8 +592,8 @@ function createPathParamsAdapterFromProps(_pathParams, config) {
 }
 
 // src/wizard/schema-types.ts
-function definePageSchema(schema) {
-  return schema;
+function createWizardNode(node) {
+  return node;
 }
 
 // src/wizard/state.ts
@@ -1217,8 +1217,8 @@ function Wizard({ graph, config = {} }) {
   createPathParamsAdapterFromProps,
   createWizardGraph,
   createWizardGraphFromNodes,
+  createWizardNode,
   defaultStateManager,
-  definePageSchema,
   getAllNextPages,
   getNextNonSkippedPage,
   getNextPage,

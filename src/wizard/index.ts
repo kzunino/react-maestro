@@ -40,19 +40,14 @@ export {
 	createPathParamsAdapterFromProps,
 	type PathConfig,
 } from "@/wizard/path-params";
-// Schema types
-export {
-	definePageSchema,
-	type PageStateType,
-	type SchemaToType,
-} from "@/wizard/schema-types";
+// Schema types (helper for typed nodes)
+export { createWizardNode } from "@/wizard/schema-types";
 // State management
 export {
 	defaultStateManager,
 	WizardStateManager,
 } from "@/wizard/state";
 export type {
-	JSONSchema,
 	NextPageResolver,
 	UrlParamsAdapter,
 	WizardContextValue,

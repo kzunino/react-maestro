@@ -1,9 +1,4 @@
 /**
- * JSON Schema type definition (plain object, no validation library)
- */
-export type JSONSchema = Record<string, unknown>;
-
-/**
  * Component loader function for lazy loading page components
  */
 export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
@@ -11,70 +6,39 @@ export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
 /**
  * Next page resolver - can be a string, array of strings, or a function
  */
-export type NextPageResolver =
+export type NextPageResolver<TState = WizardState> =
 	| string
 	| string[]
-	| ((state: WizardState) => string | string[] | null);
-
-/**
- * Typed wizard node - includes TypeScript type information
- */
-export type TypedWizardNode<TState = Record<string, unknown>> = {
-	/**
-	 * Unique identifier for this page/step
-	 */
-	page: string;
-
-	/**
-	 * Optional JSON Schema for UI configuration
-	 */
-	uiSchema?: JSONSchema;
-
-	/**
-	 * JSON Schema for form validation
-	 */
-	form: JSONSchema;
-
-	/**
-	 * JSON Schema defining the context/state shape for this step
-	 */
-	schemaContext: JSONSchema;
-
-	/**
-	 * TypeScript type for this page's state (inferred from schemaContext)
-	 */
-	__stateType?: TState;
-};
+	| ((state: TState) => string | string[] | null);
 
 /**
  * Wizard node definition
+ * @template TState - The type of state for this page (used to type the `next` and `shouldSkip` functions)
  */
-export type WizardNode = {
+export type WizardNode<TState = WizardState> = {
 	/**
 	 * Unique identifier for this page/step
 	 */
 	page: string;
 
 	/**
-	 * Optional JSON Schema for UI configuration
+	 * Optional form data shape (plain object) - used for documentation/typing
+	 * This is metadata only; the library doesn't validate against it
 	 */
-	uiSchema?: JSONSchema;
+	form?: Record<string, unknown>;
 
 	/**
-	 * JSON Schema for form validation
+	 * Optional state context shape (plain object) - used for documentation/typing
+	 * This is metadata only; the library doesn't validate against it
 	 */
-	form: JSONSchema;
-
-	/**
-	 * JSON Schema defining the context/state shape for this step
-	 */
-	schemaContext: JSONSchema;
+	stateContext?: Record<string, unknown>;
 
 	/**
 	 * Determines the next page(s) to navigate to
 	 * Can be a string, array of strings, or a function that evaluates state
+	 * The state parameter is typed as TState
 	 */
-	next?: NextPageResolver;
+	next?: NextPageResolver<TState>;
 
 	/**
 	 * Optional previous page identifier for back navigation
@@ -85,8 +49,9 @@ export type WizardNode = {
 	 * Optional function to determine if this step should be skipped
 	 * Returns true if the step should be skipped based on current state
 	 * Skipped steps are automatically bypassed and removed from browser history
+	 * The state parameter is typed as TState
 	 */
-	shouldSkip?: (state: WizardState) => boolean;
+	shouldSkip?: (state: TState) => boolean;
 };
 
 /**
