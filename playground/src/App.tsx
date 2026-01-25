@@ -117,44 +117,44 @@ const componentLoaders = new Map([
 
 const PAGE_WIDTH = "40rem";
 
-// Determine which route pattern to use based on current pathname
+// Stable adapters per route type – reuse so Wizard's useUrlParams doesn't churn on popstate
+const pattern1Adapter = createPathParamsAdapter({
+	template: "/[id]/page/[page]",
+});
+const pattern2Adapter = createPathParamsAdapter({
+	template: "/[id]/[type]/[someOtherOptions]/[page]",
+});
+
 function getRouteConfig() {
 	const pathname = window.location.pathname;
 
 	// Pattern 1: /[id]/page/[page]
-	// Example: /test123/page/pageA
 	const pattern1Match = pathname.match(/^\/([^/]+)\/page\/([^/]+)$/);
 	if (pattern1Match) {
 		return {
 			type: "pattern1" as const,
-			adapter: createPathParamsAdapter({
-				template: "/[id]/page/[page]",
-			}),
+			adapter: pattern1Adapter,
 			pageParamName: "page",
 			uuidParamName: "id",
 		};
 	}
 
 	// Pattern 2: /[id]/[type]/[someOtherOptions]/[page]
-	// Example: /xyz789/premium/feature1/pageA
 	const pattern2Match = pathname.match(
 		/^\/([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)$/,
 	);
 	if (pattern2Match) {
 		return {
 			type: "pattern2" as const,
-			adapter: createPathParamsAdapter({
-				template: "/[id]/[type]/[someOtherOptions]/[page]",
-			}),
+			adapter: pattern2Adapter,
 			pageParamName: "page",
 			uuidParamName: "id",
 		};
 	}
 
-	// Default: Query params
 	return {
 		type: "query" as const,
-		adapter: undefined, // Uses default browserUrlParamsAdapter
+		adapter: undefined,
 		pageParamName: "page",
 		uuidParamName: "id",
 	};

@@ -68,11 +68,14 @@ export function useUrlParams(
 		adapter.getAllParams(),
 	);
 
-	// Sync with URL changes (for browser back/forward)
+	// Sync with URL changes (browser back/forward) and when adapter changes
 	useEffect(() => {
 		if (typeof window === "undefined") {
 			return;
 		}
+
+		// Re-read from current URL when adapter changes (e.g. after popstate + parent re-render)
+		setParams(adapter.getAllParams());
 
 		const handlePopState = () => {
 			setParams(adapter.getAllParams());
