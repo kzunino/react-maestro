@@ -40,8 +40,6 @@ export {
 	createPathParamsAdapterFromProps,
 	type PathConfig,
 } from "@/wizard/path-params";
-// Schema types (helper for typed nodes)
-export { createWizardNode } from "@/wizard/schema-types";
 // State management
 export {
 	defaultStateManager,
