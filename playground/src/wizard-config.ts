@@ -1,93 +1,49 @@
 import type { WizardGraph, WizardNode } from "react-maestro";
-import {
-	createWizardGraphFromNodes,
-	definePageSchema,
-} from "react-maestro";
+import { createWizardGraphFromNodes } from "react-maestro";
 
-const pageASchema = definePageSchema({
-	type: "object",
-	properties: {
-		name: { type: "string" },
-		age: { type: "number" },
-		address: { type: "string" },
-	},
-});
+enum Page {
+	PageA = "pageA",
+	PageB = "pageB",
+	PageC = "pageC",
+	PageD = "pageD",
+	PageE = "pageE",
+}
 
 const nodes: WizardNode[] = [
 	{
-		page: "pageA",
-		form: pageASchema,
-		schemaContext: pageASchema,
-		next: "pageB",
+		currentPage: Page.PageA,
+		nextPage: Page.PageB,
 	},
 	{
-		page: "pageB",
-		form: {
-			type: "object",
-			properties: {
-				email: { type: "string" },
-				userType: { type: "string" },
-			},
-		},
-		schemaContext: {
-			type: "object",
-			properties: {
-				email: { type: "string" },
-				userType: { type: "string" },
-			},
-		},
-		previous: "pageA",
-		next: (state) => {
-			const userType = state.userType as string | undefined;
-			if (userType === "premium") return "pageE";
-			return "pageC";
+		currentPage: Page.PageB,
+		nextPage: (state) => {
+			if (state.userType === "premium") return Page.PageE;
+			return Page.PageC;
 		},
 	},
 	{
-		page: "pageC",
-		form: { type: "object", properties: {} },
-		schemaContext: { type: "object", properties: {} },
-		previous: "pageB",
-		next: "pageD",
+		currentPage: Page.PageC,
+		previousPageFallback: Page.PageB,
+		nextPage: Page.PageD,
 	},
 	{
-		page: "pageD",
-		form: {
-			type: "object",
-			properties: { confirm: { type: "boolean" } },
-		},
-		schemaContext: {
-			type: "object",
-			properties: { confirm: { type: "boolean" } },
-		},
-		previous: "pageC",
+		currentPage: Page.PageD,
+		previousPageFallback: Page.PageC,
 	},
 	{
-		page: "pageE",
-		form: {
-			type: "object",
-			properties: { premiumFeature: { type: "string" } },
-		},
-		schemaContext: {
-			type: "object",
-			properties: { premiumFeature: { type: "string" } },
-		},
-		previous: "pageB",
-		next: "pageD",
+		currentPage: Page.PageE,
+		nextPage: Page.PageD,
 	},
 ];
 
-export const graph: WizardGraph = createWizardGraphFromNodes(
-	nodes,
-	"pageA",
-);
+export const graph: WizardGraph = createWizardGraphFromNodes(nodes, Page.PageA);
 
 export const componentLoaders = new Map([
-	["pageA", () => import("./pages/PageA")],
-	["pageB", () => import("./pages/PageB")],
-	["pageC", () => import("./pages/PageC")],
-	["pageD", () => import("./pages/PageD")],
-	["pageE", () => import("./pages/PageE")],
+	[Page.PageA, () => import("./pages/PageA")],
+	[Page.PageB, () => import("./pages/PageB")],
+	[Page.PageC, () => import("./pages/PageC")],
+	[Page.PageD, () => import("./pages/PageD")],
+	[Page.PageE, () => import("./pages/PageE")],
 	["__expired__", () => import("./pages/Expired")],
 	["__notfound__", () => import("./pages/PageNotFound")],
 ]);

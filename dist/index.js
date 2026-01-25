@@ -5,12 +5,14 @@ function createWizardGraph() {
   };
 }
 function registerNode(graph, node) {
-  if (graph.nodes.has(node.page)) {
-    throw new Error(`Node with page "${node.page}" already exists in graph`);
+  if (graph.nodes.has(node.currentPage)) {
+    throw new Error(
+      `Node with currentPage "${node.currentPage}" already exists in graph`
+    );
   }
-  graph.nodes.set(node.page, node);
+  graph.nodes.set(node.currentPage, node);
   if (!graph.entryPoint) {
-    graph.entryPoint = node.page;
+    graph.entryPoint = node.currentPage;
   }
 }
 function createWizardGraphFromNodes(nodes, entryPoint) {
@@ -40,13 +42,13 @@ function shouldSkipStep(graph, page, state) {
   return false;
 }
 function resolveNextPage(node, state) {
-  if (!node.next) {
+  if (!node.nextPage) {
     return null;
   }
-  if (typeof node.next === "function") {
-    return node.next(state);
+  if (typeof node.nextPage === "function") {
+    return node.nextPage(state);
   }
-  return node.next;
+  return node.nextPage;
 }
 function getNextNonSkippedPage(graph, page, state, visited = /* @__PURE__ */ new Set()) {
   if (visited.has(page)) {
@@ -117,29 +119,36 @@ function getPreviousNonSkippedPage(graph, page, state, visited = /* @__PURE__ */
   if (!node) {
     return null;
   }
-  if (!node.previous) {
+  if (!node.previousPageFallback) {
     return null;
   }
-  if (!graph.nodes.has(node.previous)) {
-    console.warn(`Previous page "${node.previous}" does not exist in graph`);
+  if (!graph.nodes.has(node.previousPageFallback)) {
+    console.warn(
+      `Previous page "${node.previousPageFallback}" does not exist in graph`
+    );
     return null;
   }
-  if (shouldSkipStep(graph, node.previous, state)) {
-    return getPreviousNonSkippedPage(graph, node.previous, state, visited);
+  if (shouldSkipStep(graph, node.previousPageFallback, state)) {
+    return getPreviousNonSkippedPage(
+      graph,
+      node.previousPageFallback,
+      state,
+      visited
+    );
   }
-  return node.previous;
+  return node.previousPageFallback;
 }
 function getPreviousPage(graph, currentPage, state) {
   const currentNode = getNode(graph, currentPage);
   if (!currentNode) {
     return null;
   }
-  if (!currentNode.previous) {
+  if (!currentNode.previousPageFallback) {
     return null;
   }
-  if (!graph.nodes.has(currentNode.previous)) {
+  if (!graph.nodes.has(currentNode.previousPageFallback)) {
     console.warn(
-      `Previous page "${currentNode.previous}" does not exist in graph`
+      `Previous page "${currentNode.previousPageFallback}" does not exist in graph`
     );
     return null;
   }
@@ -151,13 +160,13 @@ function validateGraph(graph) {
     errors.push(`Entry point "${graph.entryPoint}" does not exist in graph`);
   }
   for (const [page, node] of graph.nodes.entries()) {
-    if (node.previous && !graph.nodes.has(node.previous)) {
+    if (node.previousPageFallback && !graph.nodes.has(node.previousPageFallback)) {
       errors.push(
-        `Node "${page}" references non-existent previous page "${node.previous}"`
+        `Node "${page}" references non-existent previous page "${node.previousPageFallback}"`
       );
     }
-    if (node.next && typeof node.next !== "function") {
-      const nextPages = Array.isArray(node.next) ? node.next : [node.next];
+    if (node.nextPage && typeof node.nextPage !== "function") {
+      const nextPages = Array.isArray(node.nextPage) ? node.nextPage : [node.nextPage];
       for (const nextPage of nextPages) {
         if (!graph.nodes.has(nextPage)) {
           errors.push(
@@ -184,12 +193,12 @@ function getPagesInOrder(graph) {
     if (!node) {
       return;
     }
-    if (node.previous) {
-      visit(node.previous);
+    if (node.previousPageFallback) {
+      visit(node.previousPageFallback);
     }
     result.push(page);
-    if (node.next && typeof node.next !== "function") {
-      const nextPages = Array.isArray(node.next) ? node.next : [node.next];
+    if (node.nextPage && typeof node.nextPage !== "function") {
+      const nextPages = Array.isArray(node.nextPage) ? node.nextPage : [node.nextPage];
       for (const nextPage of nextPages) {
         visit(nextPage);
       }
@@ -222,84 +231,21 @@ function useWizardContext() {
 
 // src/wizard/hooks.ts
 function useWizard() {
-  return useWizardContext();
-}
-function useWizardState(key) {
-  const { state, updateState } = useWizardContext();
-  const value = state[key] ?? void 0;
-  const setValue = useCallback(
-    (newValue) => {
-      updateState(key, newValue);
+  const ctx = useWizardContext();
+  const stateKey = useCallback(
+    (key) => {
+      const value = ctx.state[key] ?? void 0;
+      const setValue = (newValue) => ctx.updateState(key, newValue);
+      return [value, setValue];
     },
-    [key, updateState]
+    [ctx.state, ctx.updateState]
   );
-  return [value, setValue];
-}
-function useWizardPageState() {
-  const { state, updateStateBatch } = useWizardContext();
-  const pageState = state || {};
-  const setPageState = useCallback(
-    (updates) => {
-      updateStateBatch(updates);
-    },
-    [updateStateBatch]
-  );
-  return [pageState, setPageState];
-}
-function useWizardStateBatch(keys) {
-  const { state, updateStateBatch } = useWizardContext();
-  const values = useCallback(() => {
-    const result = {};
-    for (const key of keys) {
-      result[key] = state[key];
-    }
-    return result;
-  }, [keys, state]);
-  const setValues = useCallback(
-    (updates) => {
-      updateStateBatch(updates);
-    },
-    [updateStateBatch]
-  );
-  return [values, setValues];
-}
-function useWizardNavigation() {
-  const {
-    goToNext,
-    goToPrevious,
-    goToPage,
-    hasNext,
-    hasPrevious,
-    currentPage
-  } = useWizardContext();
   return {
-    goToNext,
-    goToPrevious,
-    goToPage,
-    hasNext: hasNext(),
-    hasPrevious: hasPrevious(),
-    currentPage
+    ...ctx,
+    stateKey,
+    hasNext: ctx.hasNext(),
+    hasPrevious: ctx.hasPrevious()
   };
-}
-function useWizardPageStateByPage(page) {
-  const { getPageState } = useWizardContext();
-  return getPageState(page);
-}
-function useWizardCurrentNode() {
-  const { getCurrentNode } = useWizardContext();
-  return getCurrentNode();
-}
-function useWizardNode(page) {
-  const { getNode: getNode2 } = useWizardContext();
-  return getNode2(page);
-}
-function useWizardSkip() {
-  const { skipCurrentPage } = useWizardContext();
-  return skipCurrentPage;
-}
-function useWizardUrlParams() {
-  const { getUrlParam, getAllUrlParams, urlParams } = useWizardContext();
-  return { getUrlParam, getAllUrlParams, urlParams };
 }
 
 // src/wizard/Presenter.tsx
@@ -531,11 +477,6 @@ function createPathParamsAdapterFromProps(_pathParams, config) {
       window.history.replaceState({}, "", newPath);
     }
   };
-}
-
-// src/wizard/schema-types.ts
-function definePageSchema(schema) {
-  return schema;
 }
 
 // src/wizard/state.ts
@@ -982,7 +923,7 @@ function Wizard({ graph, config = {} }) {
     const currentNode2 = getNode(graph, currentPage);
     let directNext = null;
     if (currentNode2) {
-      const resolved = currentNode2.next;
+      const resolved = currentNode2.nextPage;
       if (typeof resolved === "string") {
         directNext = resolved;
       } else if (Array.isArray(resolved) && resolved.length > 0) {
@@ -1136,7 +1077,7 @@ function Wizard({ graph, config = {} }) {
     return null;
   }
   if (isCheckingSkip) {
-    return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: loadingFallback || /* @__PURE__ */ jsx2("div", { className: "flex items-center justify-center p-8", children: /* @__PURE__ */ jsx2("div", { className: "text-muted-foreground", children: "Loading..." }) }) });
+    return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: loadingFallback || /* @__PURE__ */ jsx2("div", {}) });
   }
   return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2(
     Presenter,
@@ -1159,7 +1100,6 @@ export {
   createWizardGraph,
   createWizardGraphFromNodes,
   defaultStateManager,
-  definePageSchema,
   getAllNextPages,
   getNextNonSkippedPage,
   getNextPage,
@@ -1173,15 +1113,6 @@ export {
   useUrlParams,
   useWizard,
   useWizardContext,
-  useWizardCurrentNode,
-  useWizardNavigation,
-  useWizardNode,
-  useWizardPageState,
-  useWizardPageStateByPage,
-  useWizardSkip,
-  useWizardState,
-  useWizardStateBatch,
-  useWizardUrlParams,
   validateGraph
 };
 //# sourceMappingURL=index.js.map

@@ -1,9 +1,4 @@
 /**
- * JSON Schema type definition (plain object, no validation library)
- */
-export type JSONSchema = Record<string, unknown>;
-
-/**
  * Component loader function for lazy loading page components
  */
 export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
@@ -11,82 +6,42 @@ export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
 /**
  * Next page resolver - can be a string, array of strings, or a function
  */
-export type NextPageResolver =
+export type NextPageResolver<TState = WizardState> =
 	| string
 	| string[]
-	| ((state: WizardState) => string | string[] | null);
-
-/**
- * Typed wizard node - includes TypeScript type information
- */
-export type TypedWizardNode<TState = Record<string, unknown>> = {
-	/**
-	 * Unique identifier for this page/step
-	 */
-	page: string;
-
-	/**
-	 * Optional JSON Schema for UI configuration
-	 */
-	uiSchema?: JSONSchema;
-
-	/**
-	 * JSON Schema for form validation
-	 */
-	form: JSONSchema;
-
-	/**
-	 * JSON Schema defining the context/state shape for this step
-	 */
-	schemaContext: JSONSchema;
-
-	/**
-	 * TypeScript type for this page's state (inferred from schemaContext)
-	 */
-	__stateType?: TState;
-};
+	| ((state: TState) => string | string[] | null);
 
 /**
  * Wizard node definition
+ * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
  */
-export type WizardNode = {
+export type WizardNode<TState = WizardState> = {
 	/**
 	 * Unique identifier for this page/step
 	 */
-	page: string;
+	currentPage: string;
 
 	/**
-	 * Optional JSON Schema for UI configuration
+	 * Determines the next page(s) to navigate to.
+	 * Can be a string, array of strings, or a function that evaluates state.
+	 * The state parameter is typed as TState.
 	 */
-	uiSchema?: JSONSchema;
+	nextPage?: NextPageResolver<TState>;
 
 	/**
-	 * JSON Schema for form validation
+	 * Optional previous page identifier. Used as fallback for hasPrevious and
+	 * when resolving previous non-skipped pages. Back navigation uses browser
+	 * history by default.
 	 */
-	form: JSONSchema;
-
-	/**
-	 * JSON Schema defining the context/state shape for this step
-	 */
-	schemaContext: JSONSchema;
-
-	/**
-	 * Determines the next page(s) to navigate to
-	 * Can be a string, array of strings, or a function that evaluates state
-	 */
-	next?: NextPageResolver;
-
-	/**
-	 * Optional previous page identifier for back navigation
-	 */
-	previous?: string;
+	previousPageFallback?: string;
 
 	/**
 	 * Optional function to determine if this step should be skipped
 	 * Returns true if the step should be skipped based on current state
 	 * Skipped steps are automatically bypassed and removed from browser history
+	 * The state parameter is typed as TState
 	 */
-	shouldSkip?: (state: WizardState) => boolean;
+	shouldSkip?: (state: TState) => boolean;
 };
 
 /**
@@ -231,4 +186,22 @@ export type WizardContextValue = {
 	 * Reactive snapshot of all URL params (updates on navigation).
 	 */
 	urlParams: Record<string, string>;
+};
+
+/**
+ * Return type of useWizard().
+ * Extends WizardContextValue with stateKey helper and hasNext/hasPrevious as booleans.
+ */
+export type UseWizardReturn = Omit<
+	WizardContextValue,
+	"hasNext" | "hasPrevious"
+> & {
+	/** Get [value, setValue] for a state key. Replaces useWizardState(key). */
+	stateKey: <T = unknown>(
+		key: string,
+	) => readonly [T | undefined, (value: T) => void];
+	/** Whether there is a next page (resolved boolean). */
+	hasNext: boolean;
+	/** Whether there is a previous page (resolved boolean). */
+	hasPrevious: boolean;
 };
