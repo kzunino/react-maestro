@@ -135,7 +135,6 @@ export default function App() {
 						urlParamsAdapter: routeConfig.adapter,
 						pageParamName: routeConfig.pageParamName,
 						uuidParamName: routeConfig.uuidParamName,
-						loadingFallback: <div />,
 						unknownPageFallback: <div>Page not found</div>,
 					}}
 				/>

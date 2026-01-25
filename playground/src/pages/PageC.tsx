@@ -44,17 +44,17 @@ export default function PageC() {
 	// This content would only show if the page is not skipped
 	return (
 		<PageLayout>
-				<h1 className="text-3xl font-bold">Page C</h1>
-				<p className="text-muted-foreground">
-					This page would only render if the skip check returned false.
-				</p>
+			<h1 className="text-3xl font-bold">Page C</h1>
+			<p className="text-muted-foreground">
+				This page would only render if the skip check returned false.
+			</p>
 
-				<div className="flex justify-between">
-					<Button variant="secondary" onClick={goToPrevious}>
-						← Back
-					</Button>
-					<Button onClick={goToNext}>Next →</Button>
-				</div>
+			<div className="flex justify-between">
+				<Button variant="secondary" onClick={goToPrevious}>
+					← Back
+				</Button>
+				<Button onClick={goToNext}>Next →</Button>
+			</div>
 		</PageLayout>
 	);
 }

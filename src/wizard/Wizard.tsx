@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	getNextPage,
@@ -589,11 +588,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 	if (isCheckingSkip) {
 		return (
 			<WizardContext.Provider value={contextValue}>
-				{loadingFallback || (
-					<div className="flex items-center justify-center p-8">
-						<div className="text-muted-foreground">Loading...</div>
-					</div>
-				)}
+				{loadingFallback || <div />}
 			</WizardContext.Provider>
 		);
 	}
