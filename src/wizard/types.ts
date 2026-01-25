@@ -22,18 +22,6 @@ export type WizardNode<TState = WizardState> = {
 	page: string;
 
 	/**
-	 * Optional form data shape (plain object) - used for documentation/typing
-	 * This is metadata only; the library doesn't validate against it
-	 */
-	form?: Record<string, unknown>;
-
-	/**
-	 * Optional state context shape (plain object) - used for documentation/typing
-	 * This is metadata only; the library doesn't validate against it
-	 */
-	stateContext?: Record<string, unknown>;
-
-	/**
 	 * Determines the next page(s) to navigate to
 	 * Can be a string, array of strings, or a function that evaluates state
 	 * The state parameter is typed as TState

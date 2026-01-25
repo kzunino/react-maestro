@@ -1,53 +1,51 @@
 import type { WizardGraph, WizardNode } from "react-maestro";
 import { createWizardGraphFromNodes } from "react-maestro";
 
+enum Page {
+	PageA = "pageA",
+	PageB = "pageB",
+	PageC = "pageC",
+	PageD = "pageD",
+	PageE = "pageE",
+}
+
 const nodes: WizardNode[] = [
 	{
-		page: "pageA",
-		form: { name: "", age: 0, address: "" },
-		stateContext: { name: "", age: 0, address: "" },
-		next: "pageB",
+		page: Page.PageA,
+		next: Page.PageB,
 	},
 	{
-		page: "pageB",
-		form: { email: "", userType: "" },
-		stateContext: { email: "", userType: "" },
-		previous: "pageA",
+		page: Page.PageB,
+		previous: Page.PageA,
 		next: (state) => {
-			if (state.userType === "premium") return "pageE";
-			return "pageC";
+			if (state.userType === "premium") return Page.PageE;
+			return Page.PageC;
 		},
 	},
 	{
-		page: "pageC",
-		form: {},
-		stateContext: {},
-		previous: "pageB",
-		next: "pageD",
+		page: Page.PageC,
+		previous: Page.PageB,
+		next: Page.PageD,
 	},
 	{
-		page: "pageD",
-		form: { confirm: false },
-		stateContext: { confirm: false },
-		previous: "pageC",
+		page: Page.PageD,
+		previous: Page.PageC,
 	},
 	{
-		page: "pageE",
-		form: { premiumFeature: "" },
-		stateContext: { premiumFeature: "" },
-		previous: "pageB",
-		next: "pageD",
+		page: Page.PageE,
+		previous: Page.PageB,
+		next: Page.PageD,
 	},
 ];
 
-export const graph: WizardGraph = createWizardGraphFromNodes(nodes, "pageA");
+export const graph: WizardGraph = createWizardGraphFromNodes(nodes, Page.PageA);
 
 export const componentLoaders = new Map([
-	["pageA", () => import("./pages/PageA")],
-	["pageB", () => import("./pages/PageB")],
-	["pageC", () => import("./pages/PageC")],
-	["pageD", () => import("./pages/PageD")],
-	["pageE", () => import("./pages/PageE")],
+	[Page.PageA, () => import("./pages/PageA")],
+	[Page.PageB, () => import("./pages/PageB")],
+	[Page.PageC, () => import("./pages/PageC")],
+	[Page.PageD, () => import("./pages/PageD")],
+	[Page.PageE, () => import("./pages/PageE")],
 	["__expired__", () => import("./pages/Expired")],
 	["__notfound__", () => import("./pages/PageNotFound")],
 ]);
