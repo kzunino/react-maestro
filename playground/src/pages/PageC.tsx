@@ -1,8 +1,7 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { Button } from "@/components/shared/ui/button/Button";
-import { useWizard, useWizardSkip } from "@/wizard";
+import { useWizard, useWizardSkip } from "react-maestro";
+import { Button } from "../components/Button";
+import { PageLayout } from "../components/PageLayout";
 
 export default function PageC() {
 	const { goToNext, goToPrevious } = useWizard();
@@ -35,18 +34,17 @@ export default function PageC() {
 	// Show loader while checking
 	if (isChecking) {
 		return (
-			<div className="container mx-auto p-8 max-w-2xl">
+			<PageLayout>
 				<div className="flex items-center justify-center min-h-[400px]">
 					<div className="text-muted-foreground">Checking conditions...</div>
 				</div>
-			</div>
+			</PageLayout>
 		);
 	}
 
 	// This content would only show if the page is not skipped
 	return (
-		<div className="container mx-auto p-8 max-w-2xl">
-			<div className="space-y-6">
+		<PageLayout>
 				<h1 className="text-3xl font-bold">Page C</h1>
 				<p className="text-muted-foreground">
 					This page would only render if the skip check returned false.
@@ -58,7 +56,6 @@ export default function PageC() {
 					</Button>
 					<Button onClick={goToNext}>Next →</Button>
 				</div>
-			</div>
-		</div>
+		</PageLayout>
 	);
 }

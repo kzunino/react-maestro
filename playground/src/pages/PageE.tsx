@@ -1,7 +1,6 @@
-"use client";
-
-import { Button } from "@/components/shared/ui/button/Button";
-import { useWizard, useWizardNavigation, useWizardState } from "@/wizard";
+import { useWizard, useWizardNavigation, useWizardState } from "react-maestro";
+import { Button } from "../components/Button";
+import { PageLayout } from "../components/PageLayout";
 
 export default function PageE() {
 	const { goToNext, goToPrevious } = useWizard();
@@ -11,8 +10,7 @@ export default function PageE() {
 	const [email] = useWizardState<string>("email");
 
 	return (
-		<div className="container mx-auto p-8 max-w-2xl">
-			<div className="space-y-6">
+		<PageLayout>
 				<h1 className="text-3xl font-bold">Page E - Premium Feature</h1>
 				<p className="text-muted-foreground">
 					Welcome, premium user! ({email}) This is a special page only for
@@ -51,7 +49,6 @@ export default function PageE() {
 						converge on Page D.
 					</p>
 				</div>
-			</div>
-		</div>
+		</PageLayout>
 	);
 }

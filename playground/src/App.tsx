@@ -1,6 +1,9 @@
-import { createWizardGraphFromNodes } from "@/wizard/graph";
-import { definePageSchema } from "@/wizard/schema-types";
-import type { WizardGraph, WizardNode } from "@/wizard/types";
+import type { WizardGraph, WizardNode } from "react-maestro";
+import {
+	createWizardGraphFromNodes,
+	definePageSchema,
+	Wizard,
+} from "react-maestro";
 
 // Define typed schema for page A with multiple fields
 const pageASchema = definePageSchema({
@@ -38,8 +41,6 @@ const nodes: WizardNode[] = [
 		},
 		previous: "pageA",
 		// Conditional branching based on userType
-		// Note: state is flattened from all pages, so we access userType directly
-		// The state from pageB will be in the flattened state object
 		next: (state) => {
 			const userType = state.userType as string | undefined;
 			// Branch to pageE if userType is "premium", otherwise go to pageC
@@ -98,8 +99,41 @@ const nodes: WizardNode[] = [
 	},
 ];
 
-// Create and export the graph
-export const testWizardGraph: WizardGraph = createWizardGraphFromNodes(
-	nodes,
-	"pageA",
-);
+// Create the graph
+const graph: WizardGraph = createWizardGraphFromNodes(nodes, "pageA");
+
+const componentLoaders = new Map([
+	["pageA", () => import("./pages/PageA")],
+	["pageB", () => import("./pages/PageB")],
+	["pageC", () => import("./pages/PageC")],
+	["pageD", () => import("./pages/PageD")],
+	["pageE", () => import("./pages/PageE")],
+	["__expired__", () => import("./pages/Expired")],
+	["__notfound__", () => import("./pages/PageNotFound")],
+]);
+
+const PAGE_WIDTH = "40rem";
+
+export default function App() {
+	return (
+		<div className="w-full">
+			<div
+				style={{
+					width: PAGE_WIDTH,
+					maxWidth: "100%",
+					marginLeft: "auto",
+					marginRight: "auto",
+				}}
+			>
+				<Wizard
+					graph={graph}
+					config={{
+						componentLoaders,
+						loadingFallback: <div />,
+						unknownPageFallback: <div>Page not found</div>,
+					}}
+				/>
+			</div>
+		</div>
+	);
+}

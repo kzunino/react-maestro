@@ -1,7 +1,6 @@
-"use client";
-
-import { Button } from "@/components/shared/ui/button/Button";
-import { useWizard, useWizardNavigation, useWizardState } from "@/wizard";
+import { useWizard, useWizardNavigation, useWizardState } from "react-maestro";
+import { Button } from "../components/Button";
+import { PageLayout } from "../components/PageLayout";
 
 export default function PageD() {
 	const { goToPrevious } = useWizard();
@@ -11,8 +10,7 @@ export default function PageD() {
 	const [confirm, setConfirm] = useWizardState<boolean>("confirm");
 
 	return (
-		<div className="container mx-auto p-8 max-w-2xl">
-			<div className="space-y-6">
+		<PageLayout>
 				<h1 className="text-3xl font-bold">Page D</h1>
 				<p className="text-muted-foreground">
 					Final page! You should have skipped Page C.
@@ -56,7 +54,6 @@ export default function PageD() {
 						Note: Going back should take you to Page B (skipping Page C)
 					</p>
 				</div>
-			</div>
-		</div>
+		</PageLayout>
 	);
 }

@@ -2,9 +2,16 @@
 	"name": "react-maestro",
 	"version": "0.0.1",
 	"description": "Graph-based flow orchestration for React. Build branching, stateful user flows from a single entry point.",
-	"main": "dist/index.cjs",
-	"module": "dist/index.js",
-	"types": "dist/index.d.ts",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
 	"files": [
 		"dist"
 	],
@@ -12,7 +19,9 @@
 		"build": "tsup",
 		"dev": "tsup --watch",
 		"prepublishOnly": "npm run build",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"playground": "npm run build && cd playground && npm run dev",
+		"playground:install": "cd playground && npm install"
 	},
 	"keywords": [
 		"react",

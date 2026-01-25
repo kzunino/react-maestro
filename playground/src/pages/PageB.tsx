@@ -1,7 +1,6 @@
-"use client";
-
-import { Button } from "@/components/shared/ui/button/Button";
-import { useWizard, useWizardNavigation, useWizardState } from "@/wizard";
+import { useWizard, useWizardNavigation, useWizardState } from "react-maestro";
+import { Button } from "../components/Button";
+import { PageLayout } from "../components/PageLayout";
 
 export default function PageB() {
 	const { goToNext, goToPrevious } = useWizard();
@@ -11,8 +10,7 @@ export default function PageB() {
 	const [name] = useWizardState<string>("name");
 
 	return (
-		<div className="container mx-auto p-8 max-w-2xl">
-			<div className="space-y-6">
+		<PageLayout>
 				<h1 className="text-3xl font-bold">Page B</h1>
 				<p className="text-muted-foreground">
 					Hello, {name || "there"}! Enter your email and select user type. If
@@ -76,7 +74,6 @@ export default function PageB() {
 								: "Select a user type to see routing"}
 					</p>
 				</div>
-			</div>
-		</div>
+		</PageLayout>
 	);
 }

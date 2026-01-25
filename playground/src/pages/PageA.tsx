@@ -1,7 +1,6 @@
-"use client";
-
-import { Button } from "@/components/shared/ui/button/Button";
-import { useWizard, useWizardState } from "@/wizard";
+import { useWizard, useWizardState } from "react-maestro";
+import { Button } from "../components/Button";
+import { PageLayout } from "../components/PageLayout";
 
 export default function PageA() {
 	const { goToNext } = useWizard();
@@ -12,8 +11,7 @@ export default function PageA() {
 	const [address, setAddress] = useWizardState<string>("address");
 
 	return (
-		<div className="container mx-auto p-8 max-w-2xl">
-			<div className="space-y-6">
+		<PageLayout>
 				<h1 className="text-3xl font-bold">Page A</h1>
 				<p className="text-muted-foreground">
 					This is the first page. Fill out all fields to continue.
@@ -68,7 +66,6 @@ export default function PageA() {
 						Next →
 					</Button>
 				</div>
-			</div>
-		</div>
+		</PageLayout>
 	);
 }
