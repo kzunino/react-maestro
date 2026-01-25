@@ -61,7 +61,6 @@ export type {
 } from "@/wizard/types";
 // URL params
 export { useUrlParams } from "@/wizard/url-params";
-// Note: replaceParam is available via useUrlParams().replaceParam
 // Main Wizard component
 export {
 	Wizard,
