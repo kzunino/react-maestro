@@ -8,9 +8,9 @@ type ComponentLoader = () => Promise<{
     default: React.ComponentType;
 }>;
 /**
- * Next page resolver - can be a string, array of strings, or a function
+ * Next page resolver - can be a string or a function
  */
-type NextPageResolver<TState = WizardState> = string | string[] | ((state: TState) => string | string[] | null);
+type NextPageResolver<TState = WizardState> = string | ((state: TState) => string | null);
 /**
  * Wizard node definition
  * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
@@ -21,8 +21,8 @@ type WizardNode<TState = WizardState> = {
      */
     currentPage: string;
     /**
-     * Determines the next page(s) to navigate to.
-     * Can be a string, array of strings, or a function that evaluates state.
+     * Determines the next page to navigate to.
+     * Can be a string or a function that evaluates state.
      * The state parameter is typed as TState.
      */
     nextPage?: NextPageResolver<TState>;
@@ -204,9 +204,9 @@ declare function getNode(graph: WizardGraph, page: string): WizardNode | undefin
  */
 declare function shouldSkipStep(graph: WizardGraph, page: string, state: WizardState): boolean;
 /**
- * Resolves the next page(s) for a given node based on current state
+ * Resolves the next page for a given node based on current state
  */
-declare function resolveNextPage(node: WizardNode, state: WizardState): string | string[] | null;
+declare function resolveNextPage(node: WizardNode, state: WizardState): string | null;
 /**
  * Recursively finds the next non-skipped page, preventing infinite loops
  */
@@ -217,7 +217,8 @@ declare function getNextNonSkippedPage(graph: WizardGraph, page: string, state: 
  */
 declare function getNextPage(graph: WizardGraph, currentPage: string, state: WizardState): string | null;
 /**
- * Gets all possible next pages (useful for conditional branching)
+ * Gets the next page (returns as array for consistency with previous API)
+ * @deprecated Consider using getNextPage instead
  */
 declare function getAllNextPages(graph: WizardGraph, currentPage: string, state: WizardState): string[];
 /**

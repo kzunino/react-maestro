@@ -4,12 +4,11 @@
 export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
 
 /**
- * Next page resolver - can be a string, array of strings, or a function
+ * Next page resolver - can be a string or a function
  */
 export type NextPageResolver<TState = WizardState> =
 	| string
-	| string[]
-	| ((state: TState) => string | string[] | null);
+	| ((state: TState) => string | null);
 
 /**
  * Wizard node definition
@@ -22,8 +21,8 @@ export type WizardNode<TState = WizardState> = {
 	currentPage: string;
 
 	/**
-	 * Determines the next page(s) to navigate to.
-	 * Can be a string, array of strings, or a function that evaluates state.
+	 * Determines the next page to navigate to.
+	 * Can be a string or a function that evaluates state.
 	 * The state parameter is typed as TState.
 	 */
 	nextPage?: NextPageResolver<TState>;

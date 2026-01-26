@@ -3,6 +3,7 @@ import {
 	getNextPage,
 	getNode,
 	getPreviousPage,
+	resolveNextPage,
 	shouldSkipStep,
 } from "@/wizard/graph";
 import { Presenter } from "@/wizard/Presenter";
@@ -103,6 +104,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		componentLoaders,
 	} = config;
 
+	// Use default state manager. Change this in the future to allow other state managers.
 	const stateManager = defaultStateManager;
 
 	// Build component loaders map from graph if not provided
@@ -113,6 +115,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		// If not provided, create an empty map (users must provide componentLoaders)
 		return new Map<string, ComponentLoader>();
 	}, [componentLoaders]);
+
 	const urlParams = useUrlParams(urlParamsAdapter);
 
 	// Get or generate UUID (last 5 digits)
@@ -183,7 +186,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			return;
 		}
 
-		// Check page existence first: unknown page → not found
+		// Check page existence first: if page doesn't exist, set to not found
 		if (!graph.nodes.has(urlPage)) {
 			setCurrentPage("__notfound__");
 			setIsValidating(false);
@@ -380,22 +383,9 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		// If the next page is different from what would be the direct next,
 		// we're skipping steps
 		const currentNode = getNode(graph, currentPage);
-		let directNext: string | null = null;
-		if (currentNode) {
-			const resolved = currentNode.nextPage;
-			if (typeof resolved === "string") {
-				directNext = resolved;
-			} else if (Array.isArray(resolved) && resolved.length > 0) {
-				directNext = resolved[0];
-			} else if (typeof resolved === "function") {
-				const funcResult = resolved(allState);
-				if (typeof funcResult === "string") {
-					directNext = funcResult;
-				} else if (Array.isArray(funcResult) && funcResult.length > 0) {
-					directNext = funcResult[0];
-				}
-			}
-		}
+		const directNext = currentNode
+			? resolveNextPage(currentNode, allState)
+			: null;
 
 		// If nextPage is different from directNext, we skipped steps
 		const isSkipping = directNext !== null && directNext !== nextPage;

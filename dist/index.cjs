@@ -124,11 +124,7 @@ function getNextPage(graph, currentPage, state) {
   if (!currentNode) {
     return null;
   }
-  const next = resolveNextPage(currentNode, state);
-  if (next === null) {
-    return null;
-  }
-  const nextPage = Array.isArray(next) ? next.length > 0 ? next[0] : null : next;
+  const nextPage = resolveNextPage(currentNode, state);
   if (!nextPage) {
     return null;
   }
@@ -139,21 +135,8 @@ function getNextPage(graph, currentPage, state) {
   return getNextNonSkippedPage(graph, nextPage, state);
 }
 function getAllNextPages(graph, currentPage, state) {
-  const currentNode = getNode(graph, currentPage);
-  if (!currentNode) {
-    return [];
-  }
-  const next = resolveNextPage(currentNode, state);
-  if (next === null) {
-    return [];
-  }
-  if (Array.isArray(next)) {
-    return next.filter((page) => graph.nodes.has(page));
-  }
-  if (graph.nodes.has(next)) {
-    return [next];
-  }
-  return [];
+  const nextPage = getNextPage(graph, currentPage, state);
+  return nextPage ? [nextPage] : [];
 }
 function getPreviousNonSkippedPage(graph, page, state, visited = /* @__PURE__ */ new Set()) {
   if (visited.has(page)) {
@@ -212,13 +195,10 @@ function validateGraph(graph) {
       );
     }
     if (node.nextPage && typeof node.nextPage !== "function") {
-      const nextPages = Array.isArray(node.nextPage) ? node.nextPage : [node.nextPage];
-      for (const nextPage of nextPages) {
-        if (!graph.nodes.has(nextPage)) {
-          errors.push(
-            `Node "${page}" references non-existent next page "${nextPage}"`
-          );
-        }
+      if (!graph.nodes.has(node.nextPage)) {
+        errors.push(
+          `Node "${page}" references non-existent next page "${node.nextPage}"`
+        );
       }
     }
   }
@@ -244,10 +224,7 @@ function getPagesInOrder(graph) {
     }
     result.push(page);
     if (node.nextPage && typeof node.nextPage !== "function") {
-      const nextPages = Array.isArray(node.nextPage) ? node.nextPage : [node.nextPage];
-      for (const nextPage of nextPages) {
-        visit(nextPage);
-      }
+      visit(node.nextPage);
     }
   }
   if (graph.entryPoint) {
@@ -961,22 +938,7 @@ function Wizard({ graph, config = {} }) {
     }
     const previousPage = currentPage;
     const currentNode2 = getNode(graph, currentPage);
-    let directNext = null;
-    if (currentNode2) {
-      const resolved = currentNode2.nextPage;
-      if (typeof resolved === "string") {
-        directNext = resolved;
-      } else if (Array.isArray(resolved) && resolved.length > 0) {
-        directNext = resolved[0];
-      } else if (typeof resolved === "function") {
-        const funcResult = resolved(allState);
-        if (typeof funcResult === "string") {
-          directNext = funcResult;
-        } else if (Array.isArray(funcResult) && funcResult.length > 0) {
-          directNext = funcResult[0];
-        }
-      }
-    }
+    const directNext = currentNode2 ? resolveNextPage(currentNode2, allState) : null;
     const isSkipping = directNext !== null && directNext !== nextPage;
     if (isSkipping) {
       urlParams.replaceParam(pageParamName, nextPage);
