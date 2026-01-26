@@ -20,11 +20,6 @@ export type PresenterProps = {
 	 * Each loader should return a promise that resolves to a component with a default export
 	 */
 	componentLoaders: Map<string, ComponentLoader>;
-
-	/**
-	 * Optional fallback component to show for unknown pages
-	 */
-	unknownPageFallback?: React.ReactNode;
 };
 
 /**
@@ -33,12 +28,7 @@ export type PresenterProps = {
  * Dynamically loads components based on the provided componentLoaders map
  * Components should handle their own loading states
  */
-export function Presenter({
-	page,
-	node,
-	componentLoaders,
-	unknownPageFallback,
-}: PresenterProps) {
+export function Presenter({ page, node, componentLoaders }: PresenterProps) {
 	// Memoize the lazy-loaded component to prevent remounting on every render
 	const Component = useMemo(() => {
 		if (!page) {
@@ -57,6 +47,9 @@ export function Presenter({
 	// Handle special states (expired, not found) - don't require a node for these cases
 	if (page === "__expired__" || page === "__notfound__") {
 		if (!Component) {
+			console.warn(
+				`No component loader found for page "${page}". Add it to your componentLoaders map.`,
+			);
 			return null;
 		}
 		return (
@@ -71,14 +64,7 @@ export function Presenter({
 	}
 
 	if (!Component) {
-		if (unknownPageFallback) {
-			return <>{unknownPageFallback}</>;
-		}
-		return (
-			<div className="flex items-center justify-center p-8">
-				<div className="text-destructive">Unknown page: {page}</div>
-			</div>
-		);
+		return null;
 	}
 
 	return (

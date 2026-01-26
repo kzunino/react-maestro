@@ -270,10 +270,6 @@ type PresenterProps = {
      * Each loader should return a promise that resolves to a component with a default export
      */
     componentLoaders: Map<string, ComponentLoader>;
-    /**
-     * Optional fallback component to show for unknown pages
-     */
-    unknownPageFallback?: React.ReactNode;
 };
 /**
  * Presenter component that dynamically loads and renders wizard pages
@@ -281,7 +277,7 @@ type PresenterProps = {
  * Dynamically loads components based on the provided componentLoaders map
  * Components should handle their own loading states
  */
-declare function Presenter({ page, node, componentLoaders, unknownPageFallback, }: PresenterProps): react_jsx_runtime.JSX.Element | null;
+declare function Presenter({ page, node, componentLoaders }: PresenterProps): react_jsx_runtime.JSX.Element | null;
 
 /**
  * Configuration for path-based URL parameters
@@ -379,10 +375,6 @@ type WizardConfig = {
      * Optional URL parameter name for the wizard UUID (defaults to "id")
      */
     uuidParamName?: string;
-    /**
-     * Optional unknown page fallback for Presenter
-     */
-    unknownPageFallback?: React.ReactNode;
     /**
      * Optional callback when page changes
      */

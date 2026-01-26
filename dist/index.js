@@ -250,13 +250,8 @@ function useWizard() {
 
 // src/wizard/Presenter.tsx
 import { lazy, Suspense, useMemo } from "react";
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-function Presenter({
-  page,
-  node,
-  componentLoaders,
-  unknownPageFallback
-}) {
+import { jsx } from "react/jsx-runtime";
+function Presenter({ page, node, componentLoaders }) {
   const Component = useMemo(() => {
     if (!page) {
       return null;
@@ -269,6 +264,9 @@ function Presenter({
   }, [page, componentLoaders]);
   if (page === "__expired__" || page === "__notfound__") {
     if (!Component) {
+      console.warn(
+        `No component loader found for page "${page}". Add it to your componentLoaders map.`
+      );
       return null;
     }
     return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(Component, {}) });
@@ -277,13 +275,7 @@ function Presenter({
     return null;
   }
   if (!Component) {
-    if (unknownPageFallback) {
-      return /* @__PURE__ */ jsx(Fragment, { children: unknownPageFallback });
-    }
-    return /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center p-8", children: /* @__PURE__ */ jsxs("div", { className: "text-destructive", children: [
-      "Unknown page: ",
-      page
-    ] }) });
+    return null;
   }
   return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(Component, {}) });
 }
@@ -755,7 +747,6 @@ function Wizard({ graph, config = {} }) {
     urlParamsAdapter,
     pageParamName = "page",
     uuidParamName = "id",
-    unknownPageFallback,
     onPageChange,
     componentLoaders
   } = config;
@@ -808,14 +799,14 @@ function Wizard({ graph, config = {} }) {
       setIsValidating(false);
       return;
     }
-    const uuidExists = stateManager.hasState(wizardUuid);
-    if (!uuidExists) {
-      setCurrentPage("__expired__");
+    if (!graph.nodes.has(urlPage)) {
+      setCurrentPage("__notfound__");
       setIsValidating(false);
       return;
     }
-    if (!graph.nodes.has(urlPage)) {
-      setCurrentPage("__notfound__");
+    const uuidExists = stateManager.hasState(wizardUuid);
+    if (!uuidExists) {
+      setCurrentPage("__expired__");
       setIsValidating(false);
       return;
     }
@@ -830,15 +821,15 @@ function Wizard({ graph, config = {} }) {
     const entryPoint = graph.entryPoint || null;
     const isEntryPoint = urlPage === entryPoint;
     const uuidExists = stateManager.hasState(wizardUuid);
-    if (!uuidExists && urlPage && !isEntryPoint) {
-      if (currentPage !== "__expired__") {
-        setCurrentPage("__expired__");
-      }
-      return;
-    }
     if (urlPage && !graph.nodes.has(urlPage)) {
       if (currentPage !== "__notfound__") {
         setCurrentPage("__notfound__");
+      }
+      return;
+    }
+    if (!uuidExists && urlPage && !isEntryPoint) {
+      if (currentPage !== "__expired__") {
+        setCurrentPage("__expired__");
       }
       return;
     }
@@ -1098,8 +1089,7 @@ function Wizard({ graph, config = {} }) {
     {
       page: currentPage,
       node: currentNode,
-      componentLoaders: componentLoadersMap,
-      unknownPageFallback
+      componentLoaders: componentLoadersMap
     }
   ) });
 }

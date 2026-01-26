@@ -36,11 +36,6 @@ export type WizardConfig = {
 	uuidParamName?: string;
 
 	/**
-	 * Optional unknown page fallback for Presenter
-	 */
-	unknownPageFallback?: React.ReactNode;
-
-	/**
 	 * Optional callback when page changes
 	 */
 	onPageChange?: (page: string | null, previousPage: string | null) => void;
@@ -85,7 +80,6 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		urlParamsAdapter,
 		pageParamName = "page",
 		uuidParamName = "id",
-		unknownPageFallback,
 		onPageChange,
 		componentLoaders,
 	} = config;
@@ -170,20 +164,17 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			return;
 		}
 
-		// Not on entry point - must check if state exists in session storage
-		// Check if UUID exists in session storage
-		const uuidExists = stateManager.hasState(wizardUuid);
-
-		// If not on entry point and no state exists, show expired
-		if (!uuidExists) {
-			setCurrentPage("__expired__");
+		// Check page existence first: unknown page → not found
+		if (!graph.nodes.has(urlPage)) {
+			setCurrentPage("__notfound__");
 			setIsValidating(false);
 			return;
 		}
 
-		// State exists - check if page exists in graph
-		if (!graph.nodes.has(urlPage)) {
-			setCurrentPage("__notfound__");
+		// Page exists - check if UUID has state in session storage
+		const uuidExists = stateManager.hasState(wizardUuid);
+		if (!uuidExists) {
+			setCurrentPage("__expired__");
 			setIsValidating(false);
 			return;
 		}
@@ -206,26 +197,20 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		const urlPage = urlParams.params[pageParamName] ?? null;
 		const entryPoint = graph.entryPoint || null;
 		const isEntryPoint = urlPage === entryPoint;
-
-		// Check if UUID exists in session storage BEFORE doing anything
 		const uuidExists = stateManager.hasState(wizardUuid);
 
-		// Validate: UUID existence takes priority (only if not entry point)
-		// For entry point, UUID doesn't need to exist (new wizard start)
-		if (!uuidExists && urlPage && !isEntryPoint) {
-			// UUID doesn't exist and not entry point - show expired (don't create state)
-			// This takes priority over page existence check
-			if (currentPage !== "__expired__") {
-				setCurrentPage("__expired__");
+		// Check page existence first: unknown page → not found (regardless of UUID state)
+		if (urlPage && !graph.nodes.has(urlPage)) {
+			if (currentPage !== "__notfound__") {
+				setCurrentPage("__notfound__");
 			}
 			return;
 		}
 
-		// UUID exists (or is entry point), now check if page exists in graph
-		if (urlPage && !graph.nodes.has(urlPage)) {
-			// UUID exists but page doesn't exist - show page not found (don't create state)
-			if (currentPage !== "__notfound__") {
-				setCurrentPage("__notfound__");
+		// Page exists (or no page param). Check UUID: no state for this UUID → expired
+		if (!uuidExists && urlPage && !isEntryPoint) {
+			if (currentPage !== "__expired__") {
+				setCurrentPage("__expired__");
 			}
 			return;
 		}
@@ -606,7 +591,6 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 				page={currentPage}
 				node={currentNode}
 				componentLoaders={componentLoadersMap}
-				unknownPageFallback={unknownPageFallback}
 			/>
 		</WizardContext.Provider>
 	);
