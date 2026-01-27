@@ -3,15 +3,17 @@ import {
 	getNextPage,
 	getNode,
 	getPreviousPage,
+	resolveNextPage,
 	shouldSkipStep,
 } from "@/wizard/graph";
 import { Presenter } from "@/wizard/Presenter";
-import { defaultStateManager, type WizardStateManager } from "@/wizard/state";
+import { defaultStateManager } from "@/wizard/state";
 import type {
 	ComponentLoader,
 	UrlParamsAdapter,
 	WizardContextValue,
 	WizardGraph,
+	WizardState,
 } from "@/wizard/types";
 import { useUrlParams } from "@/wizard/url-params";
 import { WizardContext } from "@/wizard/WizardContext";
@@ -21,14 +23,28 @@ import { WizardContext } from "@/wizard/WizardContext";
  */
 export type WizardConfig = {
 	/**
-	 * Optional URL params adapter (defaults to browser implementation)
+	 * Optional URL params adapter (defaults to browser query params implementation).
+	 *
+	 * Controls how the wizard reads/writes URL parameters (page, id, etc.).
+	 *
+	 * - **Omit (default)**: Uses query params like `?page=pageA&id=xyz`
+	 * - **Path-based URLs**: Pass `createPathParamsAdapter({ template: "/[id]/page/[page]" })`
+	 *   to use path segments like `/test123/page/pageA`
+	 * - **Framework adapters**: Use `createPathParamsAdapterFromProps` for Next.js/Remix
+	 *   or create a custom adapter for other routing libraries
+	 *
+	 * @example
+	 * ```ts
+	 * // Query params (default - no adapter needed)
+	 * <Wizard graph={graph} /> // URLs: ?page=pageA&id=xyz
+	 *
+	 * // Path-based URLs
+	 * const adapter = createPathParamsAdapter({ template: "/[id]/page/[page]" });
+	 * <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />
+	 * // URLs: /test123/page/pageA
+	 * ```
 	 */
 	urlParamsAdapter?: UrlParamsAdapter;
-
-	/**
-	 * Optional state manager (defaults to default instance)
-	 */
-	stateManager?: WizardStateManager;
 
 	/**
 	 * Optional URL parameter name for the current page (defaults to "page")
@@ -41,19 +57,16 @@ export type WizardConfig = {
 	uuidParamName?: string;
 
 	/**
-	 * Optional loading fallback for Presenter
-	 */
-	loadingFallback?: React.ReactNode;
-
-	/**
-	 * Optional unknown page fallback for Presenter
-	 */
-	unknownPageFallback?: React.ReactNode;
-
-	/**
 	 * Optional callback when page changes
 	 */
 	onPageChange?: (page: string | null, previousPage: string | null) => void;
+
+	/**
+	 * Whether to use the internal state system (session storage).
+	 * Default: true. Set to false to use navigation only with no persisted state.
+	 * When false, state is kept in memory only (lost on refresh).
+	 */
+	enableState?: boolean;
 
 	/**
 	 * Map of page identifiers to component loaders
@@ -93,14 +106,25 @@ function generateShortUuid(): string {
 export function Wizard({ graph, config = {} }: WizardProps) {
 	const {
 		urlParamsAdapter,
-		stateManager = defaultStateManager,
 		pageParamName = "page",
 		uuidParamName = "id",
-		loadingFallback,
-		unknownPageFallback,
 		onPageChange,
+		enableState = true,
 		componentLoaders,
 	} = config;
+
+	const stateManager = defaultStateManager;
+
+	type PageStateEntry = { page: string; state: WizardState };
+	const [memoryEntries, setMemoryEntries] = useState<PageStateEntry[]>([]);
+
+	const mergeEntries = useCallback((entries: PageStateEntry[]): WizardState => {
+		const all: WizardState = {};
+		for (const e of entries) {
+			Object.assign(all, e.state);
+		}
+		return all;
+	}, []);
 
 	// Build component loaders map from graph if not provided
 	const componentLoadersMap = useMemo(() => {
@@ -110,6 +134,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		// If not provided, create an empty map (users must provide componentLoaders)
 		return new Map<string, ComponentLoader>();
 	}, [componentLoaders]);
+
 	const urlParams = useUrlParams(urlParamsAdapter);
 
 	// Get or generate UUID (last 5 digits)
@@ -154,13 +179,21 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 	const [stateVersion, setStateVersion] = useState(0);
 
 	// Get accumulated state from all pages
-	// We use stateVersion to force re-computation of allState
 	const allState = useMemo(() => {
-		// Force dependency on stateVersion by using it in the computation
-		// This ensures the memo recomputes when state updates
-		const _ = stateVersion;
-		return stateManager.getAllState(graph, wizardUuid);
-	}, [graph, stateManager, wizardUuid, stateVersion]);
+		if (enableState) {
+			const _ = stateVersion;
+			return stateManager.getAllState(graph, wizardUuid);
+		}
+		return mergeEntries(memoryEntries);
+	}, [
+		enableState,
+		stateVersion,
+		graph,
+		stateManager,
+		wizardUuid,
+		mergeEntries,
+		memoryEntries,
+	]);
 
 	// Early validation check: Ensure we're either on entry point or state exists
 	// This runs first to prevent any rendering until validation is complete
@@ -180,28 +213,35 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			return;
 		}
 
-		// Not on entry point - must check if state exists in session storage
-		// Check if UUID exists in session storage
-		const uuidExists = stateManager.hasState(wizardUuid);
-
-		// If not on entry point and no state exists, show expired
-		if (!uuidExists) {
-			setCurrentPage("__expired__");
-			setIsValidating(false);
-			return;
-		}
-
-		// State exists - check if page exists in graph
+		// Check page existence first: if page doesn't exist, set to not found
 		if (!graph.nodes.has(urlPage)) {
 			setCurrentPage("__notfound__");
 			setIsValidating(false);
 			return;
 		}
 
-		// Validation passes - page is valid and state exists
+		// When state enabled: check if UUID has state in session storage
+		if (enableState) {
+			const uuidExists = stateManager.hasState(wizardUuid);
+			if (!uuidExists) {
+				setCurrentPage("__expired__");
+				setIsValidating(false);
+				return;
+			}
+		}
+
+		// Validation passes
 		setCurrentPage(urlPage);
 		setIsValidating(false);
-	}, [isValidating, urlParams, pageParamName, graph, wizardUuid, stateManager]);
+	}, [
+		isValidating,
+		urlParams,
+		pageParamName,
+		graph,
+		wizardUuid,
+		stateManager,
+		enableState,
+	]);
 
 	// Sync current page with URL param changes (browser back/forward)
 	// URL is the source of truth - when URL changes, it drives what page is shown
@@ -216,74 +256,63 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		const urlPage = urlParams.params[pageParamName] ?? null;
 		const entryPoint = graph.entryPoint || null;
 		const isEntryPoint = urlPage === entryPoint;
+		const uuidExists = enableState
+			? stateManager.hasState(wizardUuid)
+			: false;
 
-		// Check if UUID exists in session storage BEFORE doing anything
-		const uuidExists = stateManager.hasState(wizardUuid);
-
-		// Validate: UUID existence takes priority (only if not entry point)
-		// For entry point, UUID doesn't need to exist (new wizard start)
-		if (!uuidExists && urlPage && !isEntryPoint) {
-			// UUID doesn't exist and not entry point - show expired (don't create state)
-			// This takes priority over page existence check
-			if (currentPage !== "__expired__") {
-				setCurrentPage("__expired__");
-			}
-			return;
-		}
-
-		// UUID exists (or is entry point), now check if page exists in graph
+		// Check page existence first: unknown page → not found (regardless of UUID state)
 		if (urlPage && !graph.nodes.has(urlPage)) {
-			// UUID exists but page doesn't exist - show page not found (don't create state)
 			if (currentPage !== "__notfound__") {
 				setCurrentPage("__notfound__");
 			}
 			return;
 		}
 
+		// When state enabled: page exists but no state for UUID → expired
+		if (enableState && !uuidExists && urlPage && !isEntryPoint) {
+			if (currentPage !== "__expired__") {
+				setCurrentPage("__expired__");
+			}
+			return;
+		}
+
 		// Validation passes - ensure currentPage matches URL page if it was set to error state initially
-		// This handles the case where initial state validation didn't run properly
 		if (
 			(currentPage === "__expired__" || currentPage === "__notfound__") &&
 			urlPage &&
 			graph.nodes.has(urlPage)
 		) {
-			// Validation now passes, update to show the actual page
 			setCurrentPage(urlPage);
 		}
 
 		// If we're already showing an error page but validation passes, don't proceed
-		// This prevents flicker when initial state was set correctly
 		if (currentPage === "__expired__" || currentPage === "__notfound__") {
-			// If validation now passes, we should show the actual page
-			// But only if the URL page matches what we expect
 			if (
 				urlPage &&
 				urlPage !== currentPage &&
 				graph.nodes.has(urlPage) &&
-				uuidExists
+				(enableState ? uuidExists : true)
 			) {
-				// Validation now passes, update to show the actual page
 				setCurrentPage(urlPage);
 			} else {
-				// Still invalid, keep error state (already set correctly)
 				return;
 			}
 		}
 
-		// Only pre-register state if validation passes and we haven't initialized yet
-		// Pre-register if UUID doesn't exist AND (this is the entry point OR no page param)
-		// This ensures we only create state for valid new wizard starts
-		if (
-			!hasInitializedRef.current &&
-			!uuidExists &&
-			(isEntryPoint || !urlPage)
-		) {
-			stateManager.preRegisterState(graph, wizardUuid);
-			hasInitializedRef.current = true;
-			// Trigger a re-render after pre-registration to load any existing state
-			setStateVersion((prev) => prev + 1);
-		} else if (uuidExists) {
-			// If UUID exists, mark as initialized (state was created in a previous session)
+		// When state enabled: pre-register state for new wizard starts
+		if (enableState) {
+			if (
+				!hasInitializedRef.current &&
+				!uuidExists &&
+				(isEntryPoint || !urlPage)
+			) {
+				stateManager.preRegisterState(graph, wizardUuid);
+				hasInitializedRef.current = true;
+				setStateVersion((prev) => prev + 1);
+			} else if (uuidExists) {
+				hasInitializedRef.current = true;
+			}
+		} else {
 			hasInitializedRef.current = true;
 		}
 
@@ -316,11 +345,15 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		} else if (!urlPage) {
 			// If URL has no page param, sync to entry point
 			if (entryPoint && entryPoint !== currentPage) {
+				const previousPage = currentPage;
 				setCurrentPage(entryPoint);
 				urlParams.setParam(pageParamName, entryPoint);
+				onPageChange?.(entryPoint, previousPage);
 			} else if (!entryPoint && currentPage) {
 				// No entry point and no URL param, clear current page
+				const previousPage = currentPage;
 				setCurrentPage(null);
+				onPageChange?.(null, previousPage);
 			}
 		}
 	}, [
@@ -334,6 +367,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		stateManager,
 		wizardUuid,
 		isValidating,
+		enableState,
 	]);
 
 	// Check if current page should be skipped and navigate if needed
@@ -382,22 +416,9 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		// If the next page is different from what would be the direct next,
 		// we're skipping steps
 		const currentNode = getNode(graph, currentPage);
-		let directNext: string | null = null;
-		if (currentNode) {
-			const resolved = currentNode.nextPage;
-			if (typeof resolved === "string") {
-				directNext = resolved;
-			} else if (Array.isArray(resolved) && resolved.length > 0) {
-				directNext = resolved[0];
-			} else if (typeof resolved === "function") {
-				const funcResult = resolved(allState);
-				if (typeof funcResult === "string") {
-					directNext = funcResult;
-				} else if (Array.isArray(funcResult) && funcResult.length > 0) {
-					directNext = funcResult[0];
-				}
-			}
-		}
+		const directNext = currentNode
+			? resolveNextPage(currentNode, allState)
+			: null;
 
 		// If nextPage is different from directNext, we skipped steps
 		const isSkipping = directNext !== null && directNext !== nextPage;
@@ -440,6 +461,22 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		[graph, currentPage, onPageChange, pageParamName, urlParams],
 	);
 
+	const skipToPage = useCallback(
+		(page: string) => {
+			if (!graph.nodes.has(page)) {
+				console.warn(`Page "${page}" does not exist in graph`);
+				return;
+			}
+
+			const previousPage = currentPage;
+
+			setCurrentPage(page);
+			urlParams.replaceParam(pageParamName, page);
+			onPageChange?.(page, previousPage);
+		},
+		[graph, currentPage, onPageChange, pageParamName, urlParams],
+	);
+
 	// Skip current page and navigate to next non-skipped page
 	// This can be called from within a page component after loading
 	const skipCurrentPage = useCallback(() => {
@@ -464,42 +501,68 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		setIsCheckingSkip(false);
 	}, [currentPage, graph, allState, pageParamName, urlParams, onPageChange]);
 
-	// Complete wizard and clear state from session storage
+	// Complete wizard and clear state (session storage when enabled, in-memory when disabled)
 	// User is responsible for handling navigation/redirect after calling this
 	const completeWizard = useCallback(() => {
-		stateManager.clearState(wizardUuid);
-	}, [stateManager, wizardUuid]);
+		if (enableState) {
+			stateManager.clearState(wizardUuid);
+		} else {
+			setMemoryEntries([]);
+		}
+	}, [enableState, stateManager, wizardUuid]);
 
 	// State update functions
 	const updateState = useCallback(
 		(key: string, value: unknown) => {
-			if (!currentPage) {
-				return;
+			if (!currentPage) return;
+			if (enableState) {
+				stateManager.setState(wizardUuid, currentPage, key, value);
+				setStateVersion((prev) => prev + 1);
+			} else {
+				setMemoryEntries((prev) => {
+					const next = [...prev];
+					const i = next.findIndex((e) => e.page === currentPage);
+					const entry = i >= 0 ? { ...next[i] } : { page: currentPage, state: {} };
+					entry.state = { ...entry.state, [key]: value };
+					if (i >= 0) next[i] = entry;
+					else next.push(entry);
+					return next;
+				});
 			}
-			stateManager.setState(wizardUuid, currentPage, key, value);
-			// Trigger re-computation of allState
-			setStateVersion((prev) => prev + 1);
 		},
-		[currentPage, stateManager, wizardUuid],
+		[currentPage, enableState, stateManager, wizardUuid],
 	);
 
 	const updateStateBatch = useCallback(
 		(updates: Record<string, unknown>) => {
-			if (!currentPage) {
-				return;
+			if (!currentPage) return;
+			if (enableState) {
+				stateManager.setStateBatch(wizardUuid, currentPage, updates);
+				setStateVersion((prev) => prev + 1);
+			} else {
+				setMemoryEntries((prev) => {
+					const next = [...prev];
+					const i = next.findIndex((e) => e.page === currentPage);
+					const entry = i >= 0 ? { ...next[i] } : { page: currentPage, state: {} };
+					entry.state = { ...entry.state, ...updates };
+					if (i >= 0) next[i] = entry;
+					else next.push(entry);
+					return next;
+				});
 			}
-			stateManager.setStateBatch(wizardUuid, currentPage, updates);
-			// Trigger re-computation of allState
-			setStateVersion((prev) => prev + 1);
 		},
-		[currentPage, stateManager, wizardUuid],
+		[currentPage, enableState, stateManager, wizardUuid],
 	);
 
 	const getPageState = useCallback(
 		(page: string) => {
-			return stateManager.getState(wizardUuid, page);
+			if (enableState) {
+				return stateManager.getState(wizardUuid, page);
+			}
+			const entry = memoryEntries.find((e) => e.page === page);
+			return entry?.state ?? {};
 		},
-		[stateManager, wizardUuid],
+		[enableState, stateManager, wizardUuid, memoryEntries],
 	);
 
 	// Helper functions
@@ -544,6 +607,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			goToNext,
 			goToPrevious,
 			goToPage,
+			skipToPage,
 			updateState,
 			updateStateBatch,
 			getPageState,
@@ -563,6 +627,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			goToNext,
 			goToPrevious,
 			goToPage,
+			skipToPage,
 			updateState,
 			updateStateBatch,
 			getPageState,
@@ -584,11 +649,10 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		return null;
 	}
 
-	// Show loader if we're checking if page should be skipped
 	if (isCheckingSkip) {
 		return (
 			<WizardContext.Provider value={contextValue}>
-				{loadingFallback || <div />}
+				<div />
 			</WizardContext.Provider>
 		);
 	}
@@ -599,8 +663,6 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 				page={currentPage}
 				node={currentNode}
 				componentLoaders={componentLoadersMap}
-				loadingFallback={loadingFallback}
-				unknownPageFallback={unknownPageFallback}
 			/>
 		</WizardContext.Provider>
 	);

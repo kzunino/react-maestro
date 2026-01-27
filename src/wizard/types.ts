@@ -4,12 +4,11 @@
 export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
 
 /**
- * Next page resolver - can be a string, array of strings, or a function
+ * Next page resolver - can be a string or a function
  */
 export type NextPageResolver<TState = WizardState> =
 	| string
-	| string[]
-	| ((state: TState) => string | string[] | null);
+	| ((state: TState) => string | null);
 
 /**
  * Wizard node definition
@@ -22,8 +21,8 @@ export type WizardNode<TState = WizardState> = {
 	currentPage: string;
 
 	/**
-	 * Determines the next page(s) to navigate to.
-	 * Can be a string, array of strings, or a function that evaluates state.
+	 * Determines the next page to navigate to.
+	 * Can be a string or a function that evaluates state.
 	 * The state parameter is typed as TState.
 	 */
 	nextPage?: NextPageResolver<TState>;
@@ -119,9 +118,20 @@ export type WizardContextValue = {
 	goToPrevious: () => void;
 
 	/**
-	 * Navigate to a specific page
+	 * Navigate to a specific page and preserve history.
+	 * Pushes a new entry, so back navigation returns to the page you left.
+	 * Use for normal "go to any node" navigation (e.g. after API) when you want
+	 * the user to be able to go back.
 	 */
 	goToPage: (page: string) => void;
+
+	/**
+	 * Skip to a specific page without adding the current page to history.
+	 * Uses replace instead of push, so back navigation won’t return to the page you left.
+	 * Use when jumping to a node based on async results (e.g. API response) rather than
+	 * following the normal next/previous flow.
+	 */
+	skipToPage: (page: string) => void;
 
 	/**
 	 * Update state for the current step

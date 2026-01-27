@@ -8,9 +8,9 @@ type ComponentLoader = () => Promise<{
     default: React.ComponentType;
 }>;
 /**
- * Next page resolver - can be a string, array of strings, or a function
+ * Next page resolver - can be a string or a function
  */
-type NextPageResolver<TState = WizardState> = string | string[] | ((state: TState) => string | string[] | null);
+type NextPageResolver<TState = WizardState> = string | ((state: TState) => string | null);
 /**
  * Wizard node definition
  * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
@@ -21,8 +21,8 @@ type WizardNode<TState = WizardState> = {
      */
     currentPage: string;
     /**
-     * Determines the next page(s) to navigate to.
-     * Can be a string, array of strings, or a function that evaluates state.
+     * Determines the next page to navigate to.
+     * Can be a string or a function that evaluates state.
      * The state parameter is typed as TState.
      */
     nextPage?: NextPageResolver<TState>;
@@ -103,9 +103,19 @@ type WizardContextValue = {
      */
     goToPrevious: () => void;
     /**
-     * Navigate to a specific page
+     * Navigate to a specific page and preserve history.
+     * Pushes a new entry, so back navigation returns to the page you left.
+     * Use for normal "go to any node" navigation (e.g. after API) when you want
+     * the user to be able to go back.
      */
     goToPage: (page: string) => void;
+    /**
+     * Skip to a specific page without adding the current page to history.
+     * Uses replace instead of push, so back navigation won’t return to the page you left.
+     * Use when jumping to a node based on async results (e.g. API response) rather than
+     * following the normal next/previous flow.
+     */
+    skipToPage: (page: string) => void;
     /**
      * Update state for the current step
      */
@@ -194,9 +204,9 @@ declare function getNode(graph: WizardGraph, page: string): WizardNode | undefin
  */
 declare function shouldSkipStep(graph: WizardGraph, page: string, state: WizardState): boolean;
 /**
- * Resolves the next page(s) for a given node based on current state
+ * Resolves the next page for a given node based on current state
  */
-declare function resolveNextPage(node: WizardNode, state: WizardState): string | string[] | null;
+declare function resolveNextPage(node: WizardNode, state: WizardState): string | null;
 /**
  * Recursively finds the next non-skipped page, preventing infinite loops
  */
@@ -207,7 +217,8 @@ declare function getNextNonSkippedPage(graph: WizardGraph, page: string, state: 
  */
 declare function getNextPage(graph: WizardGraph, currentPage: string, state: WizardState): string | null;
 /**
- * Gets all possible next pages (useful for conditional branching)
+ * Gets the next page (returns as array for consistency with previous API)
+ * @deprecated Consider using getNextPage instead
  */
 declare function getAllNextPages(graph: WizardGraph, currentPage: string, state: WizardState): string[];
 /**
@@ -237,9 +248,9 @@ declare function getPagesInOrder(graph: WizardGraph): string[];
  * Use one import and destructure what you need.
  *
  * @example
- * const { goToNext, goToPrevious, stateKey, currentPage, hasNext, hasPrevious } = useWizard();
+ * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext, hasPrevious } = useWizard();
  * const [name, setName] = stateKey("name");
- * const [email, setEmail] = stateKey("email");
+ * // goToPage(page) — jump to any node, preserve history (push). skipToPage(page) — same, replace (no back).
  */
 declare function useWizard(): UseWizardReturn;
 
@@ -260,21 +271,14 @@ type PresenterProps = {
      * Each loader should return a promise that resolves to a component with a default export
      */
     componentLoaders: Map<string, ComponentLoader>;
-    /**
-     * Optional fallback component to show while loading
-     */
-    loadingFallback?: React.ReactNode;
-    /**
-     * Optional fallback component to show for unknown pages
-     */
-    unknownPageFallback?: React.ReactNode;
 };
 /**
  * Presenter component that dynamically loads and renders wizard pages
  * Uses React.lazy for code splitting and tree shaking
  * Dynamically loads components based on the provided componentLoaders map
+ * Components should handle their own loading states
  */
-declare function Presenter({ page, node, componentLoaders, loadingFallback, unknownPageFallback, }: PresenterProps): react_jsx_runtime.JSX.Element | null;
+declare function Presenter({ page, node, componentLoaders }: PresenterProps): react_jsx_runtime.JSX.Element | null;
 
 /**
  * Configuration for path-based URL parameters
@@ -345,68 +349,6 @@ declare function createPathParamsAdapter(config: PathConfig): UrlParamsAdapter;
 declare function createPathParamsAdapterFromProps(_pathParams: Record<string, string | string[]> | Promise<Record<string, string | string[]>>, config: PathConfig): UrlParamsAdapter;
 
 /**
- * Manager for wizard state stored in session storage
- * Uses UUID-based storage with array structure: wizard:{uuid}: [{ page, state }, ...]
- */
-declare class WizardStateManager {
-    private prefix;
-    constructor(prefix?: string);
-    /**
-     * Gets the storage key for a wizard UUID
-     */
-    private getStorageKey;
-    /**
-     * Gets all page state entries for a wizard UUID
-     */
-    private getPageStateEntries;
-    /**
-     * Saves all page state entries for a wizard UUID
-     */
-    private setPageStateEntries;
-    /**
-     * Pre-registers all expected state keys from the graph
-     * This allows us to see all expected state upfront
-     */
-    preRegisterState(graph: WizardGraph, uuid: string): void;
-    /**
-     * Gets state for a specific page
-     */
-    getState(uuid: string, page: string): WizardState;
-    /**
-     * Sets state for a specific page
-     */
-    setState(uuid: string, page: string, key: string, value: unknown): void;
-    /**
-     * Sets multiple state values for a page at once
-     */
-    setStateBatch(uuid: string, page: string, updates: Record<string, unknown>): void;
-    /**
-     * Gets accumulated state from all pages in the graph
-     */
-    getAllState(_graph: WizardGraph, uuid: string): WizardState;
-    /**
-     * Gets state for all pages up to and including the specified page
-     */
-    getStateUpTo(_graph: WizardGraph, uuid: string, page: string): WizardState;
-    /**
-     * Checks if state exists for a specific UUID
-     */
-    hasState(uuid: string): boolean;
-    /**
-     * Clears all wizard state for a specific UUID
-     */
-    clearState(uuid: string): void;
-    /**
-     * Clears state for a specific page within a wizard UUID
-     */
-    clearPageState(uuid: string, page: string): void;
-}
-/**
- * Default instance of WizardStateManager
- */
-declare const defaultStateManager: WizardStateManager;
-
-/**
  * Hook for managing URL parameters in a framework-agnostic way
  */
 declare function useUrlParams(adapter?: UrlParamsAdapter): {
@@ -423,13 +365,28 @@ declare function useUrlParams(adapter?: UrlParamsAdapter): {
  */
 type WizardConfig = {
     /**
-     * Optional URL params adapter (defaults to browser implementation)
+     * Optional URL params adapter (defaults to browser query params implementation).
+     *
+     * Controls how the wizard reads/writes URL parameters (page, id, etc.).
+     *
+     * - **Omit (default)**: Uses query params like `?page=pageA&id=xyz`
+     * - **Path-based URLs**: Pass `createPathParamsAdapter({ template: "/[id]/page/[page]" })`
+     *   to use path segments like `/test123/page/pageA`
+     * - **Framework adapters**: Use `createPathParamsAdapterFromProps` for Next.js/Remix
+     *   or create a custom adapter for other routing libraries
+     *
+     * @example
+     * ```ts
+     * // Query params (default - no adapter needed)
+     * <Wizard graph={graph} /> // URLs: ?page=pageA&id=xyz
+     *
+     * // Path-based URLs
+     * const adapter = createPathParamsAdapter({ template: "/[id]/page/[page]" });
+     * <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />
+     * // URLs: /test123/page/pageA
+     * ```
      */
     urlParamsAdapter?: UrlParamsAdapter;
-    /**
-     * Optional state manager (defaults to default instance)
-     */
-    stateManager?: WizardStateManager;
     /**
      * Optional URL parameter name for the current page (defaults to "page")
      */
@@ -439,17 +396,15 @@ type WizardConfig = {
      */
     uuidParamName?: string;
     /**
-     * Optional loading fallback for Presenter
-     */
-    loadingFallback?: React.ReactNode;
-    /**
-     * Optional unknown page fallback for Presenter
-     */
-    unknownPageFallback?: React.ReactNode;
-    /**
      * Optional callback when page changes
      */
     onPageChange?: (page: string | null, previousPage: string | null) => void;
+    /**
+     * Whether to use the internal state system (session storage).
+     * Default: true. Set to false to use navigation only with no persisted state.
+     * When false, state is kept in memory only (lost on refresh).
+     */
+    enableState?: boolean;
     /**
      * Map of page identifiers to component loaders
      * Each loader should return a promise that resolves to a component with a default export
@@ -481,4 +436,4 @@ declare const WizardContext: react.Context<WizardContextValue | null>;
  */
 declare function useWizardContext(): WizardContextValue;
 
-export { type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, type UseWizardReturn, Wizard, type WizardConfig, WizardContext, type WizardContextValue, type WizardGraph, type WizardNode, type WizardProps, type WizardState, WizardStateManager, createPathParamsAdapter, createPathParamsAdapterFromProps, createWizardGraph, createWizardGraphFromNodes, defaultStateManager, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, registerNode, resolveNextPage, shouldSkipStep, useUrlParams, useWizard, useWizardContext, validateGraph };
+export { type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, type UseWizardReturn, Wizard, type WizardConfig, WizardContext, type WizardContextValue, type WizardGraph, type WizardNode, type WizardProps, type WizardState, createPathParamsAdapter, createPathParamsAdapterFromProps, createWizardGraph, createWizardGraphFromNodes, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, registerNode, resolveNextPage, shouldSkipStep, useUrlParams, useWizard, useWizardContext, validateGraph };

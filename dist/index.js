@@ -78,11 +78,7 @@ function getNextPage(graph, currentPage, state) {
   if (!currentNode) {
     return null;
   }
-  const next = resolveNextPage(currentNode, state);
-  if (next === null) {
-    return null;
-  }
-  const nextPage = Array.isArray(next) ? next.length > 0 ? next[0] : null : next;
+  const nextPage = resolveNextPage(currentNode, state);
   if (!nextPage) {
     return null;
   }
@@ -93,21 +89,8 @@ function getNextPage(graph, currentPage, state) {
   return getNextNonSkippedPage(graph, nextPage, state);
 }
 function getAllNextPages(graph, currentPage, state) {
-  const currentNode = getNode(graph, currentPage);
-  if (!currentNode) {
-    return [];
-  }
-  const next = resolveNextPage(currentNode, state);
-  if (next === null) {
-    return [];
-  }
-  if (Array.isArray(next)) {
-    return next.filter((page) => graph.nodes.has(page));
-  }
-  if (graph.nodes.has(next)) {
-    return [next];
-  }
-  return [];
+  const nextPage = getNextPage(graph, currentPage, state);
+  return nextPage ? [nextPage] : [];
 }
 function getPreviousNonSkippedPage(graph, page, state, visited = /* @__PURE__ */ new Set()) {
   if (visited.has(page)) {
@@ -166,13 +149,10 @@ function validateGraph(graph) {
       );
     }
     if (node.nextPage && typeof node.nextPage !== "function") {
-      const nextPages = Array.isArray(node.nextPage) ? node.nextPage : [node.nextPage];
-      for (const nextPage of nextPages) {
-        if (!graph.nodes.has(nextPage)) {
-          errors.push(
-            `Node "${page}" references non-existent next page "${nextPage}"`
-          );
-        }
+      if (!graph.nodes.has(node.nextPage)) {
+        errors.push(
+          `Node "${page}" references non-existent next page "${node.nextPage}"`
+        );
       }
     }
   }
@@ -198,10 +178,7 @@ function getPagesInOrder(graph) {
     }
     result.push(page);
     if (node.nextPage && typeof node.nextPage !== "function") {
-      const nextPages = Array.isArray(node.nextPage) ? node.nextPage : [node.nextPage];
-      for (const nextPage of nextPages) {
-        visit(nextPage);
-      }
+      visit(node.nextPage);
     }
   }
   if (graph.entryPoint) {
@@ -250,15 +227,8 @@ function useWizard() {
 
 // src/wizard/Presenter.tsx
 import { lazy, Suspense, useMemo } from "react";
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-var DefaultLoadingFallback = () => /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center p-8", children: /* @__PURE__ */ jsx("div", { className: "text-muted-foreground", children: "Loading..." }) });
-function Presenter({
-  page,
-  node,
-  componentLoaders,
-  loadingFallback = /* @__PURE__ */ jsx(DefaultLoadingFallback, {}),
-  unknownPageFallback
-}) {
+import { jsx } from "react/jsx-runtime";
+function Presenter({ page, node, componentLoaders }) {
   const Component = useMemo(() => {
     if (!page) {
       return null;
@@ -271,23 +241,20 @@ function Presenter({
   }, [page, componentLoaders]);
   if (page === "__expired__" || page === "__notfound__") {
     if (!Component) {
+      console.warn(
+        `No component loader found for page "${page}". Add it to your componentLoaders map.`
+      );
       return null;
     }
-    return /* @__PURE__ */ jsx(Suspense, { fallback: loadingFallback, children: /* @__PURE__ */ jsx(Component, {}) });
+    return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(Component, {}) });
   }
   if (!page || !node) {
     return null;
   }
   if (!Component) {
-    if (unknownPageFallback) {
-      return /* @__PURE__ */ jsx(Fragment, { children: unknownPageFallback });
-    }
-    return /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center p-8", children: /* @__PURE__ */ jsxs("div", { className: "text-destructive", children: [
-      "Unknown page: ",
-      page
-    ] }) });
+    return null;
   }
-  return /* @__PURE__ */ jsx(Suspense, { fallback: loadingFallback, children: /* @__PURE__ */ jsx(Component, {}) });
+  return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(Component, {}) });
 }
 
 // src/wizard/path-params.ts
@@ -479,6 +446,115 @@ function createPathParamsAdapterFromProps(_pathParams, config) {
   };
 }
 
+// src/wizard/url-params.ts
+import { useCallback as useCallback2, useEffect, useState } from "react";
+var browserUrlParamsAdapter = {
+  getParam: (key) => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key);
+  },
+  setParam: (key, value) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set(key, value);
+    window.history.pushState({}, "", url.toString());
+  },
+  replaceParam: (key, value) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set(key, value);
+    window.history.replaceState({}, "", url.toString());
+  },
+  getAllParams: () => {
+    if (typeof window === "undefined") {
+      return {};
+    }
+    const params = new URLSearchParams(window.location.search);
+    const result = {};
+    for (const [key, value] of params.entries()) {
+      result[key] = value;
+    }
+    return result;
+  },
+  replaceParams: (params) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.search = "";
+    for (const [key, value] of Object.entries(params)) {
+      url.searchParams.set(key, value);
+    }
+    window.history.replaceState({}, "", url.toString());
+  }
+};
+function useUrlParams(adapter = browserUrlParamsAdapter) {
+  const [params, setParams] = useState(
+    () => adapter.getAllParams()
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    setParams(adapter.getAllParams());
+    const handlePopState = () => {
+      setParams(adapter.getAllParams());
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [adapter]);
+  const getParam = useCallback2(
+    (key) => {
+      return adapter.getParam(key);
+    },
+    [adapter]
+  );
+  const setParam = useCallback2(
+    (key, value) => {
+      adapter.setParam(key, value);
+      setParams(adapter.getAllParams());
+    },
+    [adapter]
+  );
+  const replaceParam = useCallback2(
+    (key, value) => {
+      adapter.replaceParam(key, value);
+      setParams(adapter.getAllParams());
+    },
+    [adapter]
+  );
+  const getAllParams = useCallback2(() => {
+    return adapter.getAllParams();
+  }, [adapter]);
+  const replaceParams = useCallback2(
+    (newParams) => {
+      adapter.replaceParams(newParams);
+      setParams(adapter.getAllParams());
+    },
+    [adapter]
+  );
+  return {
+    getParam,
+    setParam,
+    replaceParam,
+    getAllParams,
+    replaceParams,
+    params
+  };
+}
+
+// src/wizard/Wizard.tsx
+import { useCallback as useCallback3, useEffect as useEffect2, useMemo as useMemo2, useRef, useState as useState2 } from "react";
+
 // src/wizard/state.ts
 var STORAGE_PREFIX = "wizard:";
 var WizardStateManager = class {
@@ -637,114 +713,7 @@ var WizardStateManager = class {
 };
 var defaultStateManager = new WizardStateManager();
 
-// src/wizard/url-params.ts
-import { useCallback as useCallback2, useEffect, useState } from "react";
-var browserUrlParamsAdapter = {
-  getParam: (key) => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const params = new URLSearchParams(window.location.search);
-    return params.get(key);
-  },
-  setParam: (key, value) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set(key, value);
-    window.history.pushState({}, "", url.toString());
-  },
-  replaceParam: (key, value) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set(key, value);
-    window.history.replaceState({}, "", url.toString());
-  },
-  getAllParams: () => {
-    if (typeof window === "undefined") {
-      return {};
-    }
-    const params = new URLSearchParams(window.location.search);
-    const result = {};
-    for (const [key, value] of params.entries()) {
-      result[key] = value;
-    }
-    return result;
-  },
-  replaceParams: (params) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.search = "";
-    for (const [key, value] of Object.entries(params)) {
-      url.searchParams.set(key, value);
-    }
-    window.history.replaceState({}, "", url.toString());
-  }
-};
-function useUrlParams(adapter = browserUrlParamsAdapter) {
-  const [params, setParams] = useState(
-    () => adapter.getAllParams()
-  );
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    setParams(adapter.getAllParams());
-    const handlePopState = () => {
-      setParams(adapter.getAllParams());
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [adapter]);
-  const getParam = useCallback2(
-    (key) => {
-      return adapter.getParam(key);
-    },
-    [adapter]
-  );
-  const setParam = useCallback2(
-    (key, value) => {
-      adapter.setParam(key, value);
-      setParams(adapter.getAllParams());
-    },
-    [adapter]
-  );
-  const replaceParam = useCallback2(
-    (key, value) => {
-      adapter.replaceParam(key, value);
-      setParams(adapter.getAllParams());
-    },
-    [adapter]
-  );
-  const getAllParams = useCallback2(() => {
-    return adapter.getAllParams();
-  }, [adapter]);
-  const replaceParams = useCallback2(
-    (newParams) => {
-      adapter.replaceParams(newParams);
-      setParams(adapter.getAllParams());
-    },
-    [adapter]
-  );
-  return {
-    getParam,
-    setParam,
-    replaceParam,
-    getAllParams,
-    replaceParams,
-    params
-  };
-}
-
 // src/wizard/Wizard.tsx
-import { useCallback as useCallback3, useEffect as useEffect2, useMemo as useMemo2, useRef, useState as useState2 } from "react";
 import { jsx as jsx2 } from "react/jsx-runtime";
 function generateShortUuid() {
   const uuid = crypto.randomUUID().replace(/-/g, "");
@@ -753,14 +722,21 @@ function generateShortUuid() {
 function Wizard({ graph, config = {} }) {
   const {
     urlParamsAdapter,
-    stateManager = defaultStateManager,
     pageParamName = "page",
     uuidParamName = "id",
-    loadingFallback,
-    unknownPageFallback,
     onPageChange,
+    enableState = true,
     componentLoaders
   } = config;
+  const stateManager = defaultStateManager;
+  const [memoryEntries, setMemoryEntries] = useState2([]);
+  const mergeEntries = useCallback3((entries) => {
+    const all = {};
+    for (const e of entries) {
+      Object.assign(all, e.state);
+    }
+    return all;
+  }, []);
   const componentLoadersMap = useMemo2(() => {
     if (componentLoaders) {
       return componentLoaders;
@@ -794,9 +770,20 @@ function Wizard({ graph, config = {} }) {
   const hasInitializedRef = useRef(false);
   const [stateVersion, setStateVersion] = useState2(0);
   const allState = useMemo2(() => {
-    const _ = stateVersion;
-    return stateManager.getAllState(graph, wizardUuid);
-  }, [graph, stateManager, wizardUuid, stateVersion]);
+    if (enableState) {
+      const _ = stateVersion;
+      return stateManager.getAllState(graph, wizardUuid);
+    }
+    return mergeEntries(memoryEntries);
+  }, [
+    enableState,
+    stateVersion,
+    graph,
+    stateManager,
+    wizardUuid,
+    mergeEntries,
+    memoryEntries
+  ]);
   useEffect2(() => {
     if (!isValidating) {
       return;
@@ -809,20 +796,30 @@ function Wizard({ graph, config = {} }) {
       setIsValidating(false);
       return;
     }
-    const uuidExists = stateManager.hasState(wizardUuid);
-    if (!uuidExists) {
-      setCurrentPage("__expired__");
-      setIsValidating(false);
-      return;
-    }
     if (!graph.nodes.has(urlPage)) {
       setCurrentPage("__notfound__");
       setIsValidating(false);
       return;
     }
+    if (enableState) {
+      const uuidExists = stateManager.hasState(wizardUuid);
+      if (!uuidExists) {
+        setCurrentPage("__expired__");
+        setIsValidating(false);
+        return;
+      }
+    }
     setCurrentPage(urlPage);
     setIsValidating(false);
-  }, [isValidating, urlParams, pageParamName, graph, wizardUuid, stateManager]);
+  }, [
+    isValidating,
+    urlParams,
+    pageParamName,
+    graph,
+    wizardUuid,
+    stateManager,
+    enableState
+  ]);
   useEffect2(() => {
     if (isValidating) {
       return;
@@ -830,16 +827,16 @@ function Wizard({ graph, config = {} }) {
     const urlPage = urlParams.params[pageParamName] ?? null;
     const entryPoint = graph.entryPoint || null;
     const isEntryPoint = urlPage === entryPoint;
-    const uuidExists = stateManager.hasState(wizardUuid);
-    if (!uuidExists && urlPage && !isEntryPoint) {
-      if (currentPage !== "__expired__") {
-        setCurrentPage("__expired__");
-      }
-      return;
-    }
+    const uuidExists = enableState ? stateManager.hasState(wizardUuid) : false;
     if (urlPage && !graph.nodes.has(urlPage)) {
       if (currentPage !== "__notfound__") {
         setCurrentPage("__notfound__");
+      }
+      return;
+    }
+    if (enableState && !uuidExists && urlPage && !isEntryPoint) {
+      if (currentPage !== "__expired__") {
+        setCurrentPage("__expired__");
       }
       return;
     }
@@ -847,17 +844,21 @@ function Wizard({ graph, config = {} }) {
       setCurrentPage(urlPage);
     }
     if (currentPage === "__expired__" || currentPage === "__notfound__") {
-      if (urlPage && urlPage !== currentPage && graph.nodes.has(urlPage) && uuidExists) {
+      if (urlPage && urlPage !== currentPage && graph.nodes.has(urlPage) && (enableState ? uuidExists : true)) {
         setCurrentPage(urlPage);
       } else {
         return;
       }
     }
-    if (!hasInitializedRef.current && !uuidExists && (isEntryPoint || !urlPage)) {
-      stateManager.preRegisterState(graph, wizardUuid);
-      hasInitializedRef.current = true;
-      setStateVersion((prev) => prev + 1);
-    } else if (uuidExists) {
+    if (enableState) {
+      if (!hasInitializedRef.current && !uuidExists && (isEntryPoint || !urlPage)) {
+        stateManager.preRegisterState(graph, wizardUuid);
+        hasInitializedRef.current = true;
+        setStateVersion((prev) => prev + 1);
+      } else if (uuidExists) {
+        hasInitializedRef.current = true;
+      }
+    } else {
       hasInitializedRef.current = true;
     }
     if (urlPage && urlPage !== currentPage && graph.nodes.has(urlPage)) {
@@ -876,10 +877,14 @@ function Wizard({ graph, config = {} }) {
       }
     } else if (!urlPage) {
       if (entryPoint && entryPoint !== currentPage) {
+        const previousPage = currentPage;
         setCurrentPage(entryPoint);
         urlParams.setParam(pageParamName, entryPoint);
+        onPageChange?.(entryPoint, previousPage);
       } else if (!entryPoint && currentPage) {
+        const previousPage = currentPage;
         setCurrentPage(null);
+        onPageChange?.(null, previousPage);
       }
     }
   }, [
@@ -892,7 +897,8 @@ function Wizard({ graph, config = {} }) {
     urlParams,
     stateManager,
     wizardUuid,
-    isValidating
+    isValidating,
+    enableState
   ]);
   useEffect2(() => {
     skipCheckRef.current = false;
@@ -921,22 +927,7 @@ function Wizard({ graph, config = {} }) {
     }
     const previousPage = currentPage;
     const currentNode2 = getNode(graph, currentPage);
-    let directNext = null;
-    if (currentNode2) {
-      const resolved = currentNode2.nextPage;
-      if (typeof resolved === "string") {
-        directNext = resolved;
-      } else if (Array.isArray(resolved) && resolved.length > 0) {
-        directNext = resolved[0];
-      } else if (typeof resolved === "function") {
-        const funcResult = resolved(allState);
-        if (typeof funcResult === "string") {
-          directNext = funcResult;
-        } else if (Array.isArray(funcResult) && funcResult.length > 0) {
-          directNext = funcResult[0];
-        }
-      }
-    }
+    const directNext = currentNode2 ? resolveNextPage(currentNode2, allState) : null;
     const isSkipping = directNext !== null && directNext !== nextPage;
     if (isSkipping) {
       urlParams.replaceParam(pageParamName, nextPage);
@@ -964,6 +955,19 @@ function Wizard({ graph, config = {} }) {
     },
     [graph, currentPage, onPageChange, pageParamName, urlParams]
   );
+  const skipToPage = useCallback3(
+    (page) => {
+      if (!graph.nodes.has(page)) {
+        console.warn(`Page "${page}" does not exist in graph`);
+        return;
+      }
+      const previousPage = currentPage;
+      setCurrentPage(page);
+      urlParams.replaceParam(pageParamName, page);
+      onPageChange?.(page, previousPage);
+    },
+    [graph, currentPage, onPageChange, pageParamName, urlParams]
+  );
   const skipCurrentPage = useCallback3(() => {
     if (!currentPage) {
       return;
@@ -979,33 +983,61 @@ function Wizard({ graph, config = {} }) {
     setIsCheckingSkip(false);
   }, [currentPage, graph, allState, pageParamName, urlParams, onPageChange]);
   const completeWizard = useCallback3(() => {
-    stateManager.clearState(wizardUuid);
-  }, [stateManager, wizardUuid]);
+    if (enableState) {
+      stateManager.clearState(wizardUuid);
+    } else {
+      setMemoryEntries([]);
+    }
+  }, [enableState, stateManager, wizardUuid]);
   const updateState = useCallback3(
     (key, value) => {
-      if (!currentPage) {
-        return;
+      if (!currentPage) return;
+      if (enableState) {
+        stateManager.setState(wizardUuid, currentPage, key, value);
+        setStateVersion((prev) => prev + 1);
+      } else {
+        setMemoryEntries((prev) => {
+          const next = [...prev];
+          const i = next.findIndex((e) => e.page === currentPage);
+          const entry = i >= 0 ? { ...next[i] } : { page: currentPage, state: {} };
+          entry.state = { ...entry.state, [key]: value };
+          if (i >= 0) next[i] = entry;
+          else next.push(entry);
+          return next;
+        });
       }
-      stateManager.setState(wizardUuid, currentPage, key, value);
-      setStateVersion((prev) => prev + 1);
     },
-    [currentPage, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, wizardUuid]
   );
   const updateStateBatch = useCallback3(
     (updates) => {
-      if (!currentPage) {
-        return;
+      if (!currentPage) return;
+      if (enableState) {
+        stateManager.setStateBatch(wizardUuid, currentPage, updates);
+        setStateVersion((prev) => prev + 1);
+      } else {
+        setMemoryEntries((prev) => {
+          const next = [...prev];
+          const i = next.findIndex((e) => e.page === currentPage);
+          const entry = i >= 0 ? { ...next[i] } : { page: currentPage, state: {} };
+          entry.state = { ...entry.state, ...updates };
+          if (i >= 0) next[i] = entry;
+          else next.push(entry);
+          return next;
+        });
       }
-      stateManager.setStateBatch(wizardUuid, currentPage, updates);
-      setStateVersion((prev) => prev + 1);
     },
-    [currentPage, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, wizardUuid]
   );
   const getPageState = useCallback3(
     (page) => {
-      return stateManager.getState(wizardUuid, page);
+      if (enableState) {
+        return stateManager.getState(wizardUuid, page);
+      }
+      const entry = memoryEntries.find((e) => e.page === page);
+      return entry?.state ?? {};
     },
-    [stateManager, wizardUuid]
+    [enableState, stateManager, wizardUuid, memoryEntries]
   );
   const getCurrentNode = useCallback3(() => {
     if (!currentPage) {
@@ -1041,6 +1073,7 @@ function Wizard({ graph, config = {} }) {
       goToNext,
       goToPrevious,
       goToPage,
+      skipToPage,
       updateState,
       updateStateBatch,
       getPageState,
@@ -1060,6 +1093,7 @@ function Wizard({ graph, config = {} }) {
       goToNext,
       goToPrevious,
       goToPage,
+      skipToPage,
       updateState,
       updateStateBatch,
       getPageState,
@@ -1077,16 +1111,14 @@ function Wizard({ graph, config = {} }) {
     return null;
   }
   if (isCheckingSkip) {
-    return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: loadingFallback || /* @__PURE__ */ jsx2("div", {}) });
+    return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2("div", {}) });
   }
   return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2(
     Presenter,
     {
       page: currentPage,
       node: currentNode,
-      componentLoaders: componentLoadersMap,
-      loadingFallback,
-      unknownPageFallback
+      componentLoaders: componentLoadersMap
     }
   ) });
 }
@@ -1094,12 +1126,10 @@ export {
   Presenter,
   Wizard,
   WizardContext,
-  WizardStateManager,
   createPathParamsAdapter,
   createPathParamsAdapterFromProps,
   createWizardGraph,
   createWizardGraphFromNodes,
-  defaultStateManager,
   getAllNextPages,
   getNextNonSkippedPage,
   getNextPage,

@@ -83,12 +83,12 @@ export function shouldSkipStep(
 }
 
 /**
- * Resolves the next page(s) for a given node based on current state
+ * Resolves the next page for a given node based on current state
  */
 export function resolveNextPage(
 	node: WizardNode,
 	state: WizardState,
-): string | string[] | null {
+): string | null {
 	if (!node.nextPage) {
 		return null;
 	}
@@ -98,7 +98,7 @@ export function resolveNextPage(
 		return node.nextPage(state);
 	}
 
-	// Otherwise, return the string or array directly
+	// Otherwise, return the string directly
 	return node.nextPage;
 }
 
@@ -159,18 +159,7 @@ export function getNextPage(
 		return null;
 	}
 
-	const next = resolveNextPage(currentNode, state);
-
-	if (next === null) {
-		return null;
-	}
-
-	// If it's an array, return the first page
-	const nextPage = Array.isArray(next)
-		? next.length > 0
-			? next[0]
-			: null
-		: next;
+	const nextPage = resolveNextPage(currentNode, state);
 
 	if (!nextPage) {
 		return null;
@@ -187,35 +176,16 @@ export function getNextPage(
 }
 
 /**
- * Gets all possible next pages (useful for conditional branching)
+ * Gets the next page (returns as array for consistency with previous API)
+ * @deprecated Consider using getNextPage instead
  */
 export function getAllNextPages(
 	graph: WizardGraph,
 	currentPage: string,
 	state: WizardState,
 ): string[] {
-	const currentNode = getNode(graph, currentPage);
-	if (!currentNode) {
-		return [];
-	}
-
-	const next = resolveNextPage(currentNode, state);
-
-	if (next === null) {
-		return [];
-	}
-
-	if (Array.isArray(next)) {
-		// Filter to only include pages that exist in the graph
-		return next.filter((page) => graph.nodes.has(page));
-	}
-
-	// Single page
-	if (graph.nodes.has(next)) {
-		return [next];
-	}
-
-	return [];
+	const nextPage = getNextPage(graph, currentPage, state);
+	return nextPage ? [nextPage] : [];
 }
 
 /**
@@ -322,17 +292,12 @@ export function validateGraph(graph: WizardGraph): {
 			);
 		}
 
-		// Check nextPage references (for string/array cases)
+		// Check nextPage reference (for string case)
 		if (node.nextPage && typeof node.nextPage !== "function") {
-			const nextPages = Array.isArray(node.nextPage)
-				? node.nextPage
-				: [node.nextPage];
-			for (const nextPage of nextPages) {
-				if (!graph.nodes.has(nextPage)) {
-					errors.push(
-						`Node "${page}" references non-existent next page "${nextPage}"`,
-					);
-				}
+			if (!graph.nodes.has(node.nextPage)) {
+				errors.push(
+					`Node "${page}" references non-existent next page "${node.nextPage}"`,
+				);
 			}
 		}
 	}
@@ -369,14 +334,9 @@ export function getPagesInOrder(graph: WizardGraph): string[] {
 
 		result.push(page);
 
-		// Visit next pages
+		// Visit next page
 		if (node.nextPage && typeof node.nextPage !== "function") {
-			const nextPages = Array.isArray(node.nextPage)
-				? node.nextPage
-				: [node.nextPage];
-			for (const nextPage of nextPages) {
-				visit(nextPage);
-			}
+			visit(node.nextPage);
 		}
 	}
 
