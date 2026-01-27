@@ -110,10 +110,26 @@ function Step1() {
     // Optional: Callback when page changes
     onPageChange?: (page: string | null, previousPage: string | null) => void,
     
+    // Optional: Use internal state (session storage). Default: true.
+    // Set to false for navigation-only usage (state in memory, lost on refresh).
+    enableState?: boolean,
+    
     // Required: Map of page IDs to component loaders
     componentLoaders: Map<string, ComponentLoader>,
   }}
 />
+```
+
+#### `enableState` (default: `true`)
+
+Controls whether the wizard uses the internal state system (session storage).
+
+- **`true` (default)**: State is persisted in session storage. Users can refresh or revisit via URL and resume. The "expired" flow runs when the UUID has no stored state.
+- **`false`**: State is kept in memory only (lost on refresh). No session storage, no expired check. Use when you only need navigation (goToNext, goToPrevious, goToPage, skipToPage, etc.) and manage state yourself (e.g. React state, URL, or external store).
+
+```tsx
+// Navigation only, no persisted state
+<Wizard graph={graph} config={{ componentLoaders, enableState: false }} />
 ```
 
 ### WizardNode Properties
@@ -387,6 +403,7 @@ type WizardConfig = {
   pageParamName?: string; // default: "page"
   uuidParamName?: string; // default: "id"
   onPageChange?: (page: string | null, previousPage: string | null) => void;
+  enableState?: boolean; // default: true
   componentLoaders: Map<string, ComponentLoader>;
 };
 ```

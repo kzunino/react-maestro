@@ -771,9 +771,18 @@ function Wizard({ graph, config = {} }) {
     pageParamName = "page",
     uuidParamName = "id",
     onPageChange,
+    enableState = true,
     componentLoaders
   } = config;
   const stateManager = defaultStateManager;
+  const [memoryEntries, setMemoryEntries] = (0, import_react5.useState)([]);
+  const mergeEntries = (0, import_react5.useCallback)((entries) => {
+    const all = {};
+    for (const e of entries) {
+      Object.assign(all, e.state);
+    }
+    return all;
+  }, []);
   const componentLoadersMap = (0, import_react5.useMemo)(() => {
     if (componentLoaders) {
       return componentLoaders;
@@ -807,9 +816,20 @@ function Wizard({ graph, config = {} }) {
   const hasInitializedRef = (0, import_react5.useRef)(false);
   const [stateVersion, setStateVersion] = (0, import_react5.useState)(0);
   const allState = (0, import_react5.useMemo)(() => {
-    const _ = stateVersion;
-    return stateManager.getAllState(graph, wizardUuid);
-  }, [graph, stateManager, wizardUuid, stateVersion]);
+    if (enableState) {
+      const _ = stateVersion;
+      return stateManager.getAllState(graph, wizardUuid);
+    }
+    return mergeEntries(memoryEntries);
+  }, [
+    enableState,
+    stateVersion,
+    graph,
+    stateManager,
+    wizardUuid,
+    mergeEntries,
+    memoryEntries
+  ]);
   (0, import_react5.useEffect)(() => {
     if (!isValidating) {
       return;
@@ -827,15 +847,25 @@ function Wizard({ graph, config = {} }) {
       setIsValidating(false);
       return;
     }
-    const uuidExists = stateManager.hasState(wizardUuid);
-    if (!uuidExists) {
-      setCurrentPage("__expired__");
-      setIsValidating(false);
-      return;
+    if (enableState) {
+      const uuidExists = stateManager.hasState(wizardUuid);
+      if (!uuidExists) {
+        setCurrentPage("__expired__");
+        setIsValidating(false);
+        return;
+      }
     }
     setCurrentPage(urlPage);
     setIsValidating(false);
-  }, [isValidating, urlParams, pageParamName, graph, wizardUuid, stateManager]);
+  }, [
+    isValidating,
+    urlParams,
+    pageParamName,
+    graph,
+    wizardUuid,
+    stateManager,
+    enableState
+  ]);
   (0, import_react5.useEffect)(() => {
     if (isValidating) {
       return;
@@ -843,14 +873,14 @@ function Wizard({ graph, config = {} }) {
     const urlPage = urlParams.params[pageParamName] ?? null;
     const entryPoint = graph.entryPoint || null;
     const isEntryPoint = urlPage === entryPoint;
-    const uuidExists = stateManager.hasState(wizardUuid);
+    const uuidExists = enableState ? stateManager.hasState(wizardUuid) : false;
     if (urlPage && !graph.nodes.has(urlPage)) {
       if (currentPage !== "__notfound__") {
         setCurrentPage("__notfound__");
       }
       return;
     }
-    if (!uuidExists && urlPage && !isEntryPoint) {
+    if (enableState && !uuidExists && urlPage && !isEntryPoint) {
       if (currentPage !== "__expired__") {
         setCurrentPage("__expired__");
       }
@@ -860,17 +890,21 @@ function Wizard({ graph, config = {} }) {
       setCurrentPage(urlPage);
     }
     if (currentPage === "__expired__" || currentPage === "__notfound__") {
-      if (urlPage && urlPage !== currentPage && graph.nodes.has(urlPage) && uuidExists) {
+      if (urlPage && urlPage !== currentPage && graph.nodes.has(urlPage) && (enableState ? uuidExists : true)) {
         setCurrentPage(urlPage);
       } else {
         return;
       }
     }
-    if (!hasInitializedRef.current && !uuidExists && (isEntryPoint || !urlPage)) {
-      stateManager.preRegisterState(graph, wizardUuid);
-      hasInitializedRef.current = true;
-      setStateVersion((prev) => prev + 1);
-    } else if (uuidExists) {
+    if (enableState) {
+      if (!hasInitializedRef.current && !uuidExists && (isEntryPoint || !urlPage)) {
+        stateManager.preRegisterState(graph, wizardUuid);
+        hasInitializedRef.current = true;
+        setStateVersion((prev) => prev + 1);
+      } else if (uuidExists) {
+        hasInitializedRef.current = true;
+      }
+    } else {
       hasInitializedRef.current = true;
     }
     if (urlPage && urlPage !== currentPage && graph.nodes.has(urlPage)) {
@@ -909,7 +943,8 @@ function Wizard({ graph, config = {} }) {
     urlParams,
     stateManager,
     wizardUuid,
-    isValidating
+    isValidating,
+    enableState
   ]);
   (0, import_react5.useEffect)(() => {
     skipCheckRef.current = false;
@@ -994,37 +1029,61 @@ function Wizard({ graph, config = {} }) {
     setIsCheckingSkip(false);
   }, [currentPage, graph, allState, pageParamName, urlParams, onPageChange]);
   const completeWizard = (0, import_react5.useCallback)(() => {
-    stateManager.clearState(wizardUuid);
-    const remainingParams = { ...urlParams.params };
-    delete remainingParams[pageParamName];
-    delete remainingParams[uuidParamName];
-    urlParams.replaceParams(remainingParams);
-  }, [stateManager, wizardUuid, urlParams, pageParamName, uuidParamName]);
+    if (enableState) {
+      stateManager.clearState(wizardUuid);
+    } else {
+      setMemoryEntries([]);
+    }
+  }, [enableState, stateManager, wizardUuid]);
   const updateState = (0, import_react5.useCallback)(
     (key, value) => {
-      if (!currentPage) {
-        return;
+      if (!currentPage) return;
+      if (enableState) {
+        stateManager.setState(wizardUuid, currentPage, key, value);
+        setStateVersion((prev) => prev + 1);
+      } else {
+        setMemoryEntries((prev) => {
+          const next = [...prev];
+          const i = next.findIndex((e) => e.page === currentPage);
+          const entry = i >= 0 ? { ...next[i] } : { page: currentPage, state: {} };
+          entry.state = { ...entry.state, [key]: value };
+          if (i >= 0) next[i] = entry;
+          else next.push(entry);
+          return next;
+        });
       }
-      stateManager.setState(wizardUuid, currentPage, key, value);
-      setStateVersion((prev) => prev + 1);
     },
-    [currentPage, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, wizardUuid]
   );
   const updateStateBatch = (0, import_react5.useCallback)(
     (updates) => {
-      if (!currentPage) {
-        return;
+      if (!currentPage) return;
+      if (enableState) {
+        stateManager.setStateBatch(wizardUuid, currentPage, updates);
+        setStateVersion((prev) => prev + 1);
+      } else {
+        setMemoryEntries((prev) => {
+          const next = [...prev];
+          const i = next.findIndex((e) => e.page === currentPage);
+          const entry = i >= 0 ? { ...next[i] } : { page: currentPage, state: {} };
+          entry.state = { ...entry.state, ...updates };
+          if (i >= 0) next[i] = entry;
+          else next.push(entry);
+          return next;
+        });
       }
-      stateManager.setStateBatch(wizardUuid, currentPage, updates);
-      setStateVersion((prev) => prev + 1);
     },
-    [currentPage, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, wizardUuid]
   );
   const getPageState = (0, import_react5.useCallback)(
     (page) => {
-      return stateManager.getState(wizardUuid, page);
+      if (enableState) {
+        return stateManager.getState(wizardUuid, page);
+      }
+      const entry = memoryEntries.find((e) => e.page === page);
+      return entry?.state ?? {};
     },
-    [stateManager, wizardUuid]
+    [enableState, stateManager, wizardUuid, memoryEntries]
   );
   const getCurrentNode = (0, import_react5.useCallback)(() => {
     if (!currentPage) {

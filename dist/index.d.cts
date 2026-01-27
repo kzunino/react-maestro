@@ -151,9 +151,8 @@ type WizardContextValue = {
      */
     skipCurrentPage: () => void;
     /**
-     * Complete the wizard and clear state from session storage and URL params.
-     * Clears the wizard's state data and removes page/id params from the URL.
-     * The user is responsible for handling navigation/redirect after calling this.
+     * Complete the wizard and clear state from session storage
+     * The user is responsible for handling navigation/redirect after calling this
      */
     completeWizard: () => void;
     /**
@@ -400,6 +399,12 @@ type WizardConfig = {
      * Optional callback when page changes
      */
     onPageChange?: (page: string | null, previousPage: string | null) => void;
+    /**
+     * Whether to use the internal state system (session storage).
+     * Default: true. Set to false to use navigation only with no persisted state.
+     * When false, state is kept in memory only (lost on refresh).
+     */
+    enableState?: boolean;
     /**
      * Map of page identifiers to component loaders
      * Each loader should return a promise that resolves to a component with a default export
