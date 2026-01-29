@@ -1,5 +1,5 @@
-import type { WizardGraph, WizardNode } from "react-maestro";
-import { createWizardGraphFromNodes } from "react-maestro";
+import type { FlowGraph, FlowNode } from "react-maestro";
+import { initializeFlow } from "react-maestro";
 
 enum Page {
 	PageA = "pageA",
@@ -9,7 +9,7 @@ enum Page {
 	PageE = "pageE",
 }
 
-const nodes: WizardNode[] = [
+const nodes: FlowNode[] = [
 	{
 		currentPage: Page.PageA,
 		nextPage: Page.PageB,
@@ -36,7 +36,7 @@ const nodes: WizardNode[] = [
 	},
 ];
 
-export const graph: WizardGraph = createWizardGraphFromNodes(nodes, Page.PageA);
+export const graph: FlowGraph = initializeFlow(nodes, Page.PageA);
 
 export const componentLoaders = new Map([
 	[Page.PageA, () => import("./pages/PageA")],

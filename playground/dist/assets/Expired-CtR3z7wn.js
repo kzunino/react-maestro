@@ -1,0 +1,1 @@
+import{j as s}from"./index-BETZax7Q.js";import{P as e}from"./PageLayout-CFSerNio.js";function o(){return s.jsxs(e,{children:[s.jsx("h2",{children:"Session expired"}),s.jsx("p",{children:"This wizard session has expired."})]})}export{o as default};

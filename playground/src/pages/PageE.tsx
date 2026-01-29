@@ -1,9 +1,9 @@
-import { useWizard } from "react-maestro";
+import { useFlow } from "react-maestro";
 import { Button } from "../components/Button";
 import { PageLayout } from "../components/PageLayout";
 
 export default function PageE() {
-	const { goToNext, goToPrevious, currentPage, stateKey } = useWizard();
+	const { goToNext, goToPrevious, currentPage, stateKey } = useFlow();
 	const [premiumFeature, setPremiumFeature] = stateKey<string>("premiumFeature");
 	const [email] = stateKey<string>("email");
 

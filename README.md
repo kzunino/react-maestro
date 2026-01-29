@@ -23,7 +23,7 @@ npm install react-maestro
 ## Quick Start
 
 ```tsx
-import { Wizard, createWizardGraphFromNodes, useWizard } from "react-maestro";
+import { Flow, initializeFlow, useFlow } from "react-maestro";
 
 // 1. Define your pages as nodes
 const nodes = [
@@ -49,7 +49,7 @@ const nodes = [
 ];
 
 // 2. Create the graph
-const graph = createWizardGraphFromNodes(nodes, "step1");
+const graph = initializeFlow(nodes, "step1");
 
 // 3. Define component loaders
 const componentLoaders = new Map([
@@ -60,10 +60,10 @@ const componentLoaders = new Map([
   ["complete", () => import("./pages/Complete")],
 ]);
 
-// 4. Use the Wizard component
+// 4. Use the Flow component
 function App() {
   return (
-    <Wizard
+    <Flow
       graph={graph}
       config={{
         componentLoaders,
@@ -74,7 +74,7 @@ function App() {
 
 // 5. In your page components, use the hook
 function Step1() {
-  const { stateKey, goToNext, hasNext } = useWizard();
+  const { stateKey, goToNext, hasNext } = useFlow();
   const [name, setName] = stateKey<string>("name");
 
   return (
@@ -94,11 +94,11 @@ function Step1() {
 
 ## Configuration
 
-### Wizard Component Props
+### Flow Component Props
 
 ```tsx
-<Wizard
-  graph={WizardGraph}
+<Flow
+  graph={FlowGraph}
   config={{
     // Optional: URL params adapter (defaults to query params)
     urlParamsAdapter?: UrlParamsAdapter,
@@ -122,17 +122,17 @@ function Step1() {
 
 #### `enableState` (default: `true`)
 
-Controls whether the wizard uses the internal state system (session storage).
+Controls whether the flow uses the internal state system (session storage).
 
 - **`true` (default)**: State is persisted in session storage. Users can refresh or revisit via URL and resume. The "expired" flow runs when the UUID has no stored state.
 - **`false`**: State is kept in memory only (lost on refresh). No session storage, no expired check. Use when you only need navigation (goToNext, goToPrevious, goToPage, skipToPage, etc.) and manage state yourself (e.g. React state, URL, or external store).
 
 ```tsx
 // Navigation only, no persisted state
-<Wizard graph={graph} config={{ componentLoaders, enableState: false }} />
+<Flow graph={graph} config={{ componentLoaders, enableState: false }} />
 ```
 
-### WizardNode Properties
+### FlowNode Properties
 
 Each node in your graph can have:
 
@@ -140,7 +140,7 @@ Each node in your graph can have:
 {
   currentPage: string; // Required: Unique page identifier
   
-  nextPage?: string | ((state: WizardState) => string | null);
+  nextPage?: string | ((state: FlowState) => string | null);
   // Optional: Next page(s). Can be:
   // - A string: "nextPageId"
   // - A function: (state) => state.condition ? "pageA" : "pageB"
@@ -149,21 +149,21 @@ Each node in your graph can have:
   // Optional: Fallback previous page for hasPrevious() checks
   // (Back navigation uses browser history by default)
   
-  shouldSkip?: (state: WizardState) => boolean;
+  shouldSkip?: (state: FlowState) => boolean;
   // Optional: Skip this page if function returns true
   // Skipped pages are automatically bypassed
 }
 ```
 
-## useWizard Hook
+## useFlow Hook
 
-The `useWizard` hook provides access to all wizard functionality:
+The `useFlow` hook provides access to all flow functionality:
 
 ```tsx
 const {
   // Current state
   currentPage: string | null,
-  state: WizardState, // Accumulated state from all pages
+  state: FlowState, // Accumulated state from all pages
   
   // Navigation
   goToNext: () => void,
@@ -175,23 +175,23 @@ const {
   stateKey: <T>(key: string) => [T | undefined, (value: T) => void],
   updateState: (key: string, value: unknown) => void,
   updateStateBatch: (updates: Record<string, unknown>) => void,
-  getPageState: (page: string) => WizardState,
+  getPageState: (page: string) => FlowState,
   
   // Navigation info
   hasNext: boolean,
   hasPrevious: boolean,
   
   // Utilities
-  getCurrentNode: () => WizardNode | undefined,
-  getNode: (page: string) => WizardNode | undefined,
+  getCurrentNode: () => FlowNode | undefined,
+  getNode: (page: string) => FlowNode | undefined,
   skipCurrentPage: () => void,
-  completeWizard: () => void,
+  completeFlow: () => void,
   
   // URL params
   getUrlParam: (key: string) => string | null,
   getAllUrlParams: () => Record<string, string>,
   urlParams: Record<string, string>,
-} = useWizard();
+} = useFlow();
 ```
 
 ### State Management
@@ -289,12 +289,12 @@ const { userId, type } = urlParams;
 ### Path-Based URLs (Next.js, Remix, etc.)
 
 ```tsx
-import { createPathParamsAdapter, Wizard } from "react-maestro";
+import { createPathParamsAdapter, Flow } from "react-maestro";
 
 // For Next.js App Router
 const adapter = createPathParamsAdapterFromProps(
   params, // from page props
-  { template: "/wizard/[id]/[page]" }
+  { template: "/flow/[id]/[page]" }
 );
 
 // For custom routing
@@ -302,7 +302,7 @@ const adapter = createPathParamsAdapter({
   template: "/[id]/page/[page]",
 });
 
-<Wizard
+<Flow
   graph={graph}
   config={{
     componentLoaders,
@@ -343,7 +343,7 @@ const nodes = [
 ### Page Change Callback
 
 ```tsx
-<Wizard
+<Flow
   graph={graph}
   config={{
     componentLoaders,
@@ -355,14 +355,14 @@ const nodes = [
 />
 ```
 
-### Completing the Wizard
+### Completing the flow
 
 ```tsx
 function CompletePage() {
-  const { completeWizard } = useWizard();
+  const { completeFlow } = useFlow();
 
   const handleComplete = () => {
-    completeWizard(); // Clears session storage
+    completeFlow(); // Clears session storage
     // Navigate away or show success message
     router.push("/thank-you");
   };
@@ -375,10 +375,10 @@ function CompletePage() {
 
 ### Types
 
-#### `WizardNode<TState>`
+#### `FlowNode<TState>`
 
 ```tsx
-type WizardNode<TState = WizardState> = {
+type FlowNode<TState = FlowState> = {
   currentPage: string;
   nextPage?: string | ((state: TState) => string | null);
   previousPageFallback?: string;
@@ -386,19 +386,19 @@ type WizardNode<TState = WizardState> = {
 };
 ```
 
-#### `WizardGraph`
+#### `FlowGraph`
 
 ```tsx
-type WizardGraph = {
-  nodes: Map<string, WizardNode>;
+type FlowGraph = {
+  nodes: Map<string, FlowNode>;
   entryPoint?: string;
 };
 ```
 
-#### `WizardConfig`
+#### `FlowConfig`
 
 ```tsx
-type WizardConfig = {
+type FlowConfig = {
   urlParamsAdapter?: UrlParamsAdapter;
   pageParamName?: string; // default: "page"
   uuidParamName?: string; // default: "id"
@@ -412,7 +412,7 @@ type WizardConfig = {
 
 ```tsx
 // Create a graph from nodes
-const graph = createWizardGraphFromNodes(nodes, entryPoint?);
+const graph = initializeFlow(nodes, entryPoint?);
 
 // Validate graph structure
 const { valid, errors } = validateGraph(graph);

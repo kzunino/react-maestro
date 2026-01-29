@@ -10,12 +10,12 @@ type ComponentLoader = () => Promise<{
 /**
  * Next page resolver - can be a string or a function
  */
-type NextPageResolver<TState = WizardState> = string | ((state: TState) => string | null);
+type NextPageResolver<TState = FlowState> = string | ((state: TState) => string | null);
 /**
- * Wizard node definition
+ * Flow node definition
  * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
  */
-type WizardNode<TState = WizardState> = {
+type FlowNode<TState = FlowState> = {
     /**
      * Unique identifier for this page/step
      */
@@ -41,17 +41,17 @@ type WizardNode<TState = WizardState> = {
     shouldSkip?: (state: TState) => boolean;
 };
 /**
- * Accumulated wizard state from all steps
+ * Accumulated flow state from all steps
  */
-type WizardState = Record<string, unknown>;
+type FlowState = Record<string, unknown>;
 /**
- * Graph structure storing all wizard nodes
+ * Graph structure storing all flow nodes
  */
-type WizardGraph = {
+type FlowGraph = {
     /**
      * Map of page identifiers to their node definitions
      */
-    nodes: Map<string, WizardNode>;
+    nodes: Map<string, FlowNode>;
     /**
      * Optional entry point (first page)
      */
@@ -83,9 +83,9 @@ type UrlParamsAdapter = {
     replaceParams: (params: Record<string, string>) => void;
 };
 /**
- * Wizard context value provided to child components
+ * Flow context value provided to child components
  */
-type WizardContextValue = {
+type FlowContextValue = {
     /**
      * Current page identifier
      */
@@ -93,7 +93,7 @@ type WizardContextValue = {
     /**
      * Current accumulated state from all steps
      */
-    state: WizardState;
+    state: FlowState;
     /**
      * Navigate to the next page
      */
@@ -111,7 +111,7 @@ type WizardContextValue = {
     goToPage: (page: string) => void;
     /**
      * Skip to a specific page without adding the current page to history.
-     * Uses replace instead of push, so back navigation won’t return to the page you left.
+     * Uses replace instead of push, so back navigation won't return to the page you left.
      * Use when jumping to a node based on async results (e.g. API response) rather than
      * following the normal next/previous flow.
      */
@@ -127,15 +127,15 @@ type WizardContextValue = {
     /**
      * Get state for a specific page
      */
-    getPageState: (page: string) => WizardState;
+    getPageState: (page: string) => FlowState;
     /**
      * Get the current node definition
      */
-    getCurrentNode: () => WizardNode | undefined;
+    getCurrentNode: () => FlowNode | undefined;
     /**
      * Get a node by page identifier
      */
-    getNode: (page: string) => WizardNode | undefined;
+    getNode: (page: string) => FlowNode | undefined;
     /**
      * Check if there is a next page available
      */
@@ -151,10 +151,10 @@ type WizardContextValue = {
      */
     skipCurrentPage: () => void;
     /**
-     * Complete the wizard and clear state from session storage
+     * Complete the flow and clear state from session storage
      * The user is responsible for handling navigation/redirect after calling this
      */
-    completeWizard: () => void;
+    completeFlow: () => void;
     /**
      * Get a single URL parameter (query or path, depending on adapter).
      * Use this to read arbitrary params like id, type, someOtherOptions, etc.
@@ -170,11 +170,11 @@ type WizardContextValue = {
     urlParams: Record<string, string>;
 };
 /**
- * Return type of useWizard().
- * Extends WizardContextValue with stateKey helper and hasNext/hasPrevious as booleans.
+ * Return type of useFlow().
+ * Extends FlowContextValue with stateKey helper and hasNext/hasPrevious as booleans.
  */
-type UseWizardReturn = Omit<WizardContextValue, "hasNext" | "hasPrevious"> & {
-    /** Get [value, setValue] for a state key. Replaces useWizardState(key). */
+type UseFlowReturn = Omit<FlowContextValue, "hasNext" | "hasPrevious"> & {
+    /** Get [value, setValue] for a state key. */
     stateKey: <T = unknown>(key: string) => readonly [T | undefined, (value: T) => void];
     /** Whether there is a next page (resolved boolean). */
     hasNext: boolean;
@@ -183,57 +183,57 @@ type UseWizardReturn = Omit<WizardContextValue, "hasNext" | "hasPrevious"> & {
 };
 
 /**
- * Creates a new empty wizard graph
+ * Creates a new empty flow graph
  */
-declare function createWizardGraph(): WizardGraph;
+declare function createFlowGraph(): FlowGraph;
 /**
- * Registers a node in the wizard graph
+ * Registers a node in the flow graph
  */
-declare function registerNode(graph: WizardGraph, node: WizardNode): void;
+declare function registerNode(graph: FlowGraph, node: FlowNode): void;
 /**
- * Creates a wizard graph from an array of nodes
- * This is a convenience function for defining complete wizards in one place
+ * Initialize a flow from an array of nodes.
+ * Convenience for defining complete flows in one place.
  */
-declare function createWizardGraphFromNodes(nodes: WizardNode[], entryPoint?: string): WizardGraph;
+declare function initializeFlow(nodes: FlowNode[], entryPoint?: string): FlowGraph;
 /**
  * Gets a node by its page identifier
  */
-declare function getNode(graph: WizardGraph, page: string): WizardNode | undefined;
+declare function getNode(graph: FlowGraph, page: string): FlowNode | undefined;
 /**
  * Checks if a step should be skipped based on its shouldSkip function and current state
  */
-declare function shouldSkipStep(graph: WizardGraph, page: string, state: WizardState): boolean;
+declare function shouldSkipStep(graph: FlowGraph, page: string, state: FlowState): boolean;
 /**
  * Resolves the next page for a given node based on current state
  */
-declare function resolveNextPage(node: WizardNode, state: WizardState): string | null;
+declare function resolveNextPage(node: FlowNode, state: FlowState): string | null;
 /**
  * Recursively finds the next non-skipped page, preventing infinite loops
  */
-declare function getNextNonSkippedPage(graph: WizardGraph, page: string, state: WizardState, visited?: Set<string>): string | null;
+declare function getNextNonSkippedPage(graph: FlowGraph, page: string, state: FlowState, visited?: Set<string>): string | null;
 /**
  * Gets the next page for navigation (returns first page if multiple)
  * Automatically skips steps that should be skipped
  */
-declare function getNextPage(graph: WizardGraph, currentPage: string, state: WizardState): string | null;
+declare function getNextPage(graph: FlowGraph, currentPage: string, state: FlowState): string | null;
 /**
  * Gets the next page (returns as array for consistency with previous API)
  * @deprecated Consider using getNextPage instead
  */
-declare function getAllNextPages(graph: WizardGraph, currentPage: string, state: WizardState): string[];
+declare function getAllNextPages(graph: FlowGraph, currentPage: string, state: FlowState): string[];
 /**
  * Recursively finds the previous non-skipped page, preventing infinite loops
  */
-declare function getPreviousNonSkippedPage(graph: WizardGraph, page: string, state: WizardState, visited?: Set<string>): string | null;
+declare function getPreviousNonSkippedPage(graph: FlowGraph, page: string, state: FlowState, visited?: Set<string>): string | null;
 /**
  * Gets the previous page for a given node
  * Automatically skips over steps that should be skipped
  */
-declare function getPreviousPage(graph: WizardGraph, currentPage: string, state: WizardState): string | null;
+declare function getPreviousPage(graph: FlowGraph, currentPage: string, state: FlowState): string | null;
 /**
  * Validates that all referenced pages in the graph exist
  */
-declare function validateGraph(graph: WizardGraph): {
+declare function validateGraph(graph: FlowGraph): {
     valid: boolean;
     errors: string[];
 };
@@ -241,18 +241,18 @@ declare function validateGraph(graph: WizardGraph): {
  * Gets all pages in the graph in topological order (if possible)
  * Falls back to registration order if cycles exist
  */
-declare function getPagesInOrder(graph: WizardGraph): string[];
+declare function getPagesInOrder(graph: FlowGraph): string[];
 
 /**
- * Single hook to access all wizard functionality.
+ * Single hook to access all flow functionality.
  * Use one import and destructure what you need.
  *
  * @example
- * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext, hasPrevious } = useWizard();
+ * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext, hasPrevious } = useFlow();
  * const [name, setName] = stateKey("name");
  * // goToPage(page) — jump to any node, preserve history (push). skipToPage(page) — same, replace (no back).
  */
-declare function useWizard(): UseWizardReturn;
+declare function useFlow(): UseFlowReturn;
 
 /**
  * Props for the Presenter component
@@ -265,7 +265,7 @@ type PresenterProps = {
     /**
      * Current node definition
      */
-    node: WizardNode | undefined;
+    node: FlowNode | undefined;
     /**
      * Map of page identifiers to component loaders
      * Each loader should return a promise that resolves to a component with a default export
@@ -273,7 +273,7 @@ type PresenterProps = {
     componentLoaders: Map<string, ComponentLoader>;
 };
 /**
- * Presenter component that dynamically loads and renders wizard pages
+ * Presenter component that dynamically loads and renders flow pages
  * Uses React.lazy for code splitting and tree shaking
  * Dynamically loads components based on the provided componentLoaders map
  * Components should handle their own loading states
@@ -327,22 +327,22 @@ declare function createPathParamsAdapter(config: PathConfig): UrlParamsAdapter;
  * @example
  * ```tsx
  * // Next.js example
- * export default function WizardPage({ params }: { params: Promise<{ id: string; page: string }> }) {
+ * export default function FlowPage({ params }: { params: Promise<{ id: string; page: string }> }) {
  *   const resolvedParams = use(params);
  *   const adapter = createPathParamsAdapterFromProps(
  *     resolvedParams,
- *     { template: "/[id]/[page]", basePath: "/wizard" }
+ *     { template: "/[id]/[page]", basePath: "/flow" }
  *   );
- *   return <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />;
+ *   return <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />;
  * }
  *
  * // Other frameworks (Remix, etc.)
- * export default function WizardPage({ params }: { params: { id: string; page: string } }) {
+ * export default function FlowPage({ params }: { params: { id: string; page: string } }) {
  *   const adapter = createPathParamsAdapterFromProps(
  *     params,
- *     { template: "/[id]/[page]", basePath: "/wizard" }
+ *     { template: "/[id]/[page]", basePath: "/flow" }
  *   );
- *   return <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />;
+ *   return <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />;
  * }
  * ```
  */
@@ -361,13 +361,13 @@ declare function useUrlParams(adapter?: UrlParamsAdapter): {
 };
 
 /**
- * Configuration options for the Wizard component
+ * Configuration options for the Flow component
  */
-type WizardConfig = {
+type FlowConfig = {
     /**
      * Optional URL params adapter (defaults to browser query params implementation).
      *
-     * Controls how the wizard reads/writes URL parameters (page, id, etc.).
+     * Controls how the flow reads/writes URL parameters (page, id, etc.).
      *
      * - **Omit (default)**: Uses query params like `?page=pageA&id=xyz`
      * - **Path-based URLs**: Pass `createPathParamsAdapter({ template: "/[id]/page/[page]" })`
@@ -378,11 +378,11 @@ type WizardConfig = {
      * @example
      * ```ts
      * // Query params (default - no adapter needed)
-     * <Wizard graph={graph} /> // URLs: ?page=pageA&id=xyz
+     * <Flow graph={graph} /> // URLs: ?page=pageA&id=xyz
      *
      * // Path-based URLs
      * const adapter = createPathParamsAdapter({ template: "/[id]/page/[page]" });
-     * <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />
+     * <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />
      * // URLs: /test123/page/pageA
      * ```
      */
@@ -392,7 +392,7 @@ type WizardConfig = {
      */
     pageParamName?: string;
     /**
-     * Optional URL parameter name for the wizard UUID (defaults to "id")
+     * Optional URL parameter name for the flow UUID (defaults to "id")
      */
     uuidParamName?: string;
     /**
@@ -412,28 +412,28 @@ type WizardConfig = {
     componentLoaders?: Map<string, ComponentLoader>;
 };
 /**
- * Props for the Wizard component
+ * Props for the Flow component
  */
-type WizardProps = {
+type FlowProps = {
     /**
-     * The wizard graph definition (nodes contain component loaders)
+     * The flow graph definition (nodes + component loaders)
      */
-    graph: WizardGraph;
+    graph: FlowGraph;
     /**
      * Optional configuration object
      */
-    config?: WizardConfig;
+    config?: FlowConfig;
 };
-declare function Wizard({ graph, config }: WizardProps): react_jsx_runtime.JSX.Element | null;
+declare function Flow({ graph, config }: FlowProps): react_jsx_runtime.JSX.Element | null;
 
 /**
- * React context for wizard state and navigation
+ * React context for flow state and navigation
  */
-declare const WizardContext: react.Context<WizardContextValue | null>;
+declare const FlowContext: react.Context<FlowContextValue | null>;
 /**
- * Hook to access wizard context
- * Throws an error if used outside of Wizard component
+ * Hook to access flow context
+ * Throws an error if used outside of Flow component
  */
-declare function useWizardContext(): WizardContextValue;
+declare function useFlowContext(): FlowContextValue;
 
-export { type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, type UseWizardReturn, Wizard, type WizardConfig, WizardContext, type WizardContextValue, type WizardGraph, type WizardNode, type WizardProps, type WizardState, createPathParamsAdapter, createPathParamsAdapterFromProps, createWizardGraph, createWizardGraphFromNodes, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, registerNode, resolveNextPage, shouldSkipStep, useUrlParams, useWizard, useWizardContext, validateGraph };
+export { Flow, type FlowConfig, FlowContext, type FlowContextValue, type FlowGraph, type FlowNode, type FlowProps, type FlowState, type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, type UseFlowReturn, createFlowGraph, createPathParamsAdapter, createPathParamsAdapterFromProps, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, initializeFlow, registerNode, resolveNextPage, shouldSkipStep, useFlow, useFlowContext, useUrlParams, validateGraph };

@@ -1,5 +1,5 @@
 // src/wizard/graph.ts
-function createWizardGraph() {
+function createFlowGraph() {
   return {
     nodes: /* @__PURE__ */ new Map()
   };
@@ -15,8 +15,8 @@ function registerNode(graph, node) {
     graph.entryPoint = node.currentPage;
   }
 }
-function createWizardGraphFromNodes(nodes, entryPoint) {
-  const graph = createWizardGraph();
+function initializeFlow(nodes, entryPoint) {
+  const graph = createFlowGraph();
   for (const node of nodes) {
     registerNode(graph, node);
   }
@@ -61,11 +61,7 @@ function getNextNonSkippedPage(graph, page, state, visited = /* @__PURE__ */ new
     if (!node) {
       return null;
     }
-    const next = resolveNextPage(node, state);
-    if (next === null) {
-      return null;
-    }
-    const nextPage = Array.isArray(next) ? next[0] : next;
+    const nextPage = resolveNextPage(node, state);
     if (!nextPage || !graph.nodes.has(nextPage)) {
       return null;
     }
@@ -195,20 +191,20 @@ function getPagesInOrder(graph) {
 // src/wizard/hooks.ts
 import { useCallback } from "react";
 
-// src/wizard/WizardContext.tsx
+// src/wizard/FlowContext.tsx
 import { createContext, useContext } from "react";
-var WizardContext = createContext(null);
-function useWizardContext() {
-  const context = useContext(WizardContext);
+var FlowContext = createContext(null);
+function useFlowContext() {
+  const context = useContext(FlowContext);
   if (!context) {
-    throw new Error("useWizardContext must be used within a Wizard component");
+    throw new Error("useFlowContext must be used within a Flow component");
   }
   return context;
 }
 
 // src/wizard/hooks.ts
-function useWizard() {
-  const ctx = useWizardContext();
+function useFlow() {
+  const ctx = useFlowContext();
   const stateKey = useCallback(
     (key) => {
       const value = ctx.state[key] ?? void 0;
@@ -552,11 +548,11 @@ function useUrlParams(adapter = browserUrlParamsAdapter) {
   };
 }
 
-// src/wizard/Wizard.tsx
+// src/wizard/Flow.tsx
 import { useCallback as useCallback3, useEffect as useEffect2, useMemo as useMemo2, useRef, useState as useState2 } from "react";
 
 // src/wizard/state.ts
-var STORAGE_PREFIX = "wizard:";
+var STORAGE_PREFIX = "flow:";
 var WizardStateManager = class {
   constructor(prefix = STORAGE_PREFIX) {
     this.prefix = prefix;
@@ -713,13 +709,13 @@ var WizardStateManager = class {
 };
 var defaultStateManager = new WizardStateManager();
 
-// src/wizard/Wizard.tsx
+// src/wizard/Flow.tsx
 import { jsx as jsx2 } from "react/jsx-runtime";
 function generateShortUuid() {
   const uuid = crypto.randomUUID().replace(/-/g, "");
   return uuid.slice(-5);
 }
-function Wizard({ graph, config = {} }) {
+function Flow({ graph, config = {} }) {
   const {
     urlParamsAdapter,
     pageParamName = "page",
@@ -744,7 +740,7 @@ function Wizard({ graph, config = {} }) {
     return /* @__PURE__ */ new Map();
   }, [componentLoaders]);
   const urlParams = useUrlParams(urlParamsAdapter);
-  const [wizardUuid, setWizardUuid] = useState2(() => {
+  const [flowUuid, setFlowUuid] = useState2(() => {
     const existingUuid = urlParams.getParam(uuidParamName);
     if (existingUuid) {
       return existingUuid;
@@ -757,12 +753,12 @@ function Wizard({ graph, config = {} }) {
   });
   useEffect2(() => {
     const urlUuid = urlParams.getParam(uuidParamName);
-    if (urlUuid && urlUuid !== wizardUuid) {
-      setWizardUuid(urlUuid);
+    if (urlUuid && urlUuid !== flowUuid) {
+      setFlowUuid(urlUuid);
     } else if (!urlUuid) {
-      urlParams.setParam(uuidParamName, wizardUuid);
+      urlParams.setParam(uuidParamName, flowUuid);
     }
-  }, [wizardUuid, uuidParamName, urlParams]);
+  }, [flowUuid, uuidParamName, urlParams]);
   const [currentPage, setCurrentPage] = useState2(null);
   const [isValidating, setIsValidating] = useState2(true);
   const [isCheckingSkip, setIsCheckingSkip] = useState2(false);
@@ -772,7 +768,7 @@ function Wizard({ graph, config = {} }) {
   const allState = useMemo2(() => {
     if (enableState) {
       const _ = stateVersion;
-      return stateManager.getAllState(graph, wizardUuid);
+      return stateManager.getAllState(graph, flowUuid);
     }
     return mergeEntries(memoryEntries);
   }, [
@@ -780,7 +776,7 @@ function Wizard({ graph, config = {} }) {
     stateVersion,
     graph,
     stateManager,
-    wizardUuid,
+    flowUuid,
     mergeEntries,
     memoryEntries
   ]);
@@ -802,7 +798,7 @@ function Wizard({ graph, config = {} }) {
       return;
     }
     if (enableState) {
-      const uuidExists = stateManager.hasState(wizardUuid);
+      const uuidExists = stateManager.hasState(flowUuid);
       if (!uuidExists) {
         setCurrentPage("__expired__");
         setIsValidating(false);
@@ -816,7 +812,7 @@ function Wizard({ graph, config = {} }) {
     urlParams,
     pageParamName,
     graph,
-    wizardUuid,
+    flowUuid,
     stateManager,
     enableState
   ]);
@@ -827,7 +823,7 @@ function Wizard({ graph, config = {} }) {
     const urlPage = urlParams.params[pageParamName] ?? null;
     const entryPoint = graph.entryPoint || null;
     const isEntryPoint = urlPage === entryPoint;
-    const uuidExists = enableState ? stateManager.hasState(wizardUuid) : false;
+    const uuidExists = enableState ? stateManager.hasState(flowUuid) : false;
     if (urlPage && !graph.nodes.has(urlPage)) {
       if (currentPage !== "__notfound__") {
         setCurrentPage("__notfound__");
@@ -852,7 +848,7 @@ function Wizard({ graph, config = {} }) {
     }
     if (enableState) {
       if (!hasInitializedRef.current && !uuidExists && (isEntryPoint || !urlPage)) {
-        stateManager.preRegisterState(graph, wizardUuid);
+        stateManager.preRegisterState(graph, flowUuid);
         hasInitializedRef.current = true;
         setStateVersion((prev) => prev + 1);
       } else if (uuidExists) {
@@ -896,7 +892,7 @@ function Wizard({ graph, config = {} }) {
     pageParamName,
     urlParams,
     stateManager,
-    wizardUuid,
+    flowUuid,
     isValidating,
     enableState
   ]);
@@ -982,18 +978,18 @@ function Wizard({ graph, config = {} }) {
     }
     setIsCheckingSkip(false);
   }, [currentPage, graph, allState, pageParamName, urlParams, onPageChange]);
-  const completeWizard = useCallback3(() => {
+  const completeFlow = useCallback3(() => {
     if (enableState) {
-      stateManager.clearState(wizardUuid);
+      stateManager.clearState(flowUuid);
     } else {
       setMemoryEntries([]);
     }
-  }, [enableState, stateManager, wizardUuid]);
+  }, [enableState, stateManager, flowUuid]);
   const updateState = useCallback3(
     (key, value) => {
       if (!currentPage) return;
       if (enableState) {
-        stateManager.setState(wizardUuid, currentPage, key, value);
+        stateManager.setState(flowUuid, currentPage, key, value);
         setStateVersion((prev) => prev + 1);
       } else {
         setMemoryEntries((prev) => {
@@ -1007,13 +1003,13 @@ function Wizard({ graph, config = {} }) {
         });
       }
     },
-    [currentPage, enableState, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, flowUuid]
   );
   const updateStateBatch = useCallback3(
     (updates) => {
       if (!currentPage) return;
       if (enableState) {
-        stateManager.setStateBatch(wizardUuid, currentPage, updates);
+        stateManager.setStateBatch(flowUuid, currentPage, updates);
         setStateVersion((prev) => prev + 1);
       } else {
         setMemoryEntries((prev) => {
@@ -1027,17 +1023,17 @@ function Wizard({ graph, config = {} }) {
         });
       }
     },
-    [currentPage, enableState, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, flowUuid]
   );
   const getPageState = useCallback3(
     (page) => {
       if (enableState) {
-        return stateManager.getState(wizardUuid, page);
+        return stateManager.getState(flowUuid, page);
       }
       const entry = memoryEntries.find((e) => e.page === page);
       return entry?.state ?? {};
     },
-    [enableState, stateManager, wizardUuid, memoryEntries]
+    [enableState, stateManager, flowUuid, memoryEntries]
   );
   const getCurrentNode = useCallback3(() => {
     if (!currentPage) {
@@ -1082,7 +1078,7 @@ function Wizard({ graph, config = {} }) {
       hasNext,
       hasPrevious,
       skipCurrentPage,
-      completeWizard,
+      completeFlow,
       getUrlParam: urlParams.getParam,
       getAllUrlParams: urlParams.getAllParams,
       urlParams: urlParams.params
@@ -1102,7 +1098,7 @@ function Wizard({ graph, config = {} }) {
       hasNext,
       hasPrevious,
       skipCurrentPage,
-      completeWizard,
+      completeFlow,
       urlParams
     ]
   );
@@ -1111,9 +1107,9 @@ function Wizard({ graph, config = {} }) {
     return null;
   }
   if (isCheckingSkip) {
-    return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2("div", {}) });
+    return /* @__PURE__ */ jsx2(FlowContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2("div", {}) });
   }
-  return /* @__PURE__ */ jsx2(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2(
+  return /* @__PURE__ */ jsx2(FlowContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsx2(
     Presenter,
     {
       page: currentPage,
@@ -1123,13 +1119,12 @@ function Wizard({ graph, config = {} }) {
   ) });
 }
 export {
+  Flow,
+  FlowContext,
   Presenter,
-  Wizard,
-  WizardContext,
+  createFlowGraph,
   createPathParamsAdapter,
   createPathParamsAdapterFromProps,
-  createWizardGraph,
-  createWizardGraphFromNodes,
   getAllNextPages,
   getNextNonSkippedPage,
   getNextPage,
@@ -1137,12 +1132,13 @@ export {
   getPagesInOrder,
   getPreviousNonSkippedPage,
   getPreviousPage,
+  initializeFlow,
   registerNode,
   resolveNextPage,
   shouldSkipStep,
+  useFlow,
+  useFlowContext,
   useUrlParams,
-  useWizard,
-  useWizardContext,
   validateGraph
 };
 //# sourceMappingURL=index.js.map

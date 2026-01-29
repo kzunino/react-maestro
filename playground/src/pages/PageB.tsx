@@ -1,9 +1,9 @@
-import { useWizard } from "react-maestro";
+import { useFlow } from "react-maestro";
 import { Button } from "../components/Button";
 import { PageLayout } from "../components/PageLayout";
 
 export default function PageB() {
-	const { goToNext, goToPrevious, currentPage, stateKey } = useWizard();
+	const { goToNext, goToPrevious, currentPage, stateKey } = useFlow();
 	const [email, setEmail] = stateKey<string>("email");
 	const [userType, setUserType] = stateKey<string>("userType");
 	const [name] = stateKey<string>("name");

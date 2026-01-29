@@ -6,15 +6,15 @@ export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
 /**
  * Next page resolver - can be a string or a function
  */
-export type NextPageResolver<TState = WizardState> =
+export type NextPageResolver<TState = FlowState> =
 	| string
 	| ((state: TState) => string | null);
 
 /**
- * Wizard node definition
+ * Flow node definition
  * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
  */
-export type WizardNode<TState = WizardState> = {
+export type FlowNode<TState = FlowState> = {
 	/**
 	 * Unique identifier for this page/step
 	 */
@@ -44,18 +44,18 @@ export type WizardNode<TState = WizardState> = {
 };
 
 /**
- * Accumulated wizard state from all steps
+ * Accumulated flow state from all steps
  */
-export type WizardState = Record<string, unknown>;
+export type FlowState = Record<string, unknown>;
 
 /**
- * Graph structure storing all wizard nodes
+ * Graph structure storing all flow nodes
  */
-export type WizardGraph = {
+export type FlowGraph = {
 	/**
 	 * Map of page identifiers to their node definitions
 	 */
-	nodes: Map<string, WizardNode>;
+	nodes: Map<string, FlowNode>;
 
 	/**
 	 * Optional entry point (first page)
@@ -94,9 +94,9 @@ export type UrlParamsAdapter = {
 };
 
 /**
- * Wizard context value provided to child components
+ * Flow context value provided to child components
  */
-export type WizardContextValue = {
+export type FlowContextValue = {
 	/**
 	 * Current page identifier
 	 */
@@ -105,7 +105,7 @@ export type WizardContextValue = {
 	/**
 	 * Current accumulated state from all steps
 	 */
-	state: WizardState;
+	state: FlowState;
 
 	/**
 	 * Navigate to the next page
@@ -127,7 +127,7 @@ export type WizardContextValue = {
 
 	/**
 	 * Skip to a specific page without adding the current page to history.
-	 * Uses replace instead of push, so back navigation won’t return to the page you left.
+	 * Uses replace instead of push, so back navigation won't return to the page you left.
 	 * Use when jumping to a node based on async results (e.g. API response) rather than
 	 * following the normal next/previous flow.
 	 */
@@ -146,17 +146,17 @@ export type WizardContextValue = {
 	/**
 	 * Get state for a specific page
 	 */
-	getPageState: (page: string) => WizardState;
+	getPageState: (page: string) => FlowState;
 
 	/**
 	 * Get the current node definition
 	 */
-	getCurrentNode: () => WizardNode | undefined;
+	getCurrentNode: () => FlowNode | undefined;
 
 	/**
 	 * Get a node by page identifier
 	 */
-	getNode: (page: string) => WizardNode | undefined;
+	getNode: (page: string) => FlowNode | undefined;
 
 	/**
 	 * Check if there is a next page available
@@ -176,10 +176,10 @@ export type WizardContextValue = {
 	skipCurrentPage: () => void;
 
 	/**
-	 * Complete the wizard and clear state from session storage
+	 * Complete the flow and clear state from session storage
 	 * The user is responsible for handling navigation/redirect after calling this
 	 */
-	completeWizard: () => void;
+	completeFlow: () => void;
 
 	/**
 	 * Get a single URL parameter (query or path, depending on adapter).
@@ -199,14 +199,14 @@ export type WizardContextValue = {
 };
 
 /**
- * Return type of useWizard().
- * Extends WizardContextValue with stateKey helper and hasNext/hasPrevious as booleans.
+ * Return type of useFlow().
+ * Extends FlowContextValue with stateKey helper and hasNext/hasPrevious as booleans.
  */
-export type UseWizardReturn = Omit<
-	WizardContextValue,
+export type UseFlowReturn = Omit<
+	FlowContextValue,
 	"hasNext" | "hasPrevious"
 > & {
-	/** Get [value, setValue] for a state key. Replaces useWizardState(key). */
+	/** Get [value, setValue] for a state key. */
 	stateKey: <T = unknown>(
 		key: string,
 	) => readonly [T | undefined, (value: T) => void];

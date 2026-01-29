@@ -10,22 +10,22 @@ import { Presenter } from "@/wizard/Presenter";
 import { defaultStateManager } from "@/wizard/state";
 import type {
 	ComponentLoader,
+	FlowContextValue,
+	FlowGraph,
+	FlowState,
 	UrlParamsAdapter,
-	WizardContextValue,
-	WizardGraph,
-	WizardState,
 } from "@/wizard/types";
 import { useUrlParams } from "@/wizard/url-params";
-import { WizardContext } from "@/wizard/WizardContext";
+import { FlowContext } from "@/wizard/FlowContext";
 
 /**
- * Configuration options for the Wizard component
+ * Configuration options for the Flow component
  */
-export type WizardConfig = {
+export type FlowConfig = {
 	/**
 	 * Optional URL params adapter (defaults to browser query params implementation).
 	 *
-	 * Controls how the wizard reads/writes URL parameters (page, id, etc.).
+	 * Controls how the flow reads/writes URL parameters (page, id, etc.).
 	 *
 	 * - **Omit (default)**: Uses query params like `?page=pageA&id=xyz`
 	 * - **Path-based URLs**: Pass `createPathParamsAdapter({ template: "/[id]/page/[page]" })`
@@ -36,11 +36,11 @@ export type WizardConfig = {
 	 * @example
 	 * ```ts
 	 * // Query params (default - no adapter needed)
-	 * <Wizard graph={graph} /> // URLs: ?page=pageA&id=xyz
+	 * <Flow graph={graph} /> // URLs: ?page=pageA&id=xyz
 	 *
 	 * // Path-based URLs
 	 * const adapter = createPathParamsAdapter({ template: "/[id]/page/[page]" });
-	 * <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />
+	 * <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />
 	 * // URLs: /test123/page/pageA
 	 * ```
 	 */
@@ -52,7 +52,7 @@ export type WizardConfig = {
 	pageParamName?: string;
 
 	/**
-	 * Optional URL parameter name for the wizard UUID (defaults to "id")
+	 * Optional URL parameter name for the flow UUID (defaults to "id")
 	 */
 	uuidParamName?: string;
 
@@ -76,22 +76,22 @@ export type WizardConfig = {
 };
 
 /**
- * Props for the Wizard component
+ * Props for the Flow component
  */
-export type WizardProps = {
+export type FlowProps = {
 	/**
-	 * The wizard graph definition (nodes contain component loaders)
+	 * The flow graph definition (nodes + component loaders)
 	 */
-	graph: WizardGraph;
+	graph: FlowGraph;
 
 	/**
 	 * Optional configuration object
 	 */
-	config?: WizardConfig;
+	config?: FlowConfig;
 };
 
 /**
- * Main Wizard component that orchestrates graph navigation, state management, and URL params
+ * Main Flow component. Orchestrates graph navigation, state management, and URL params.
  */
 /**
  * Generates a UUID and returns the last 5 characters (digits/letters)
@@ -103,7 +103,7 @@ function generateShortUuid(): string {
 	return uuid.slice(-5);
 }
 
-export function Wizard({ graph, config = {} }: WizardProps) {
+export function Flow({ graph, config = {} }: FlowProps) {
 	const {
 		urlParamsAdapter,
 		pageParamName = "page",
@@ -115,11 +115,11 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 
 	const stateManager = defaultStateManager;
 
-	type PageStateEntry = { page: string; state: WizardState };
+	type PageStateEntry = { page: string; state: FlowState };
 	const [memoryEntries, setMemoryEntries] = useState<PageStateEntry[]>([]);
 
-	const mergeEntries = useCallback((entries: PageStateEntry[]): WizardState => {
-		const all: WizardState = {};
+	const mergeEntries = useCallback((entries: PageStateEntry[]): FlowState => {
+		const all: FlowState = {};
 		for (const e of entries) {
 			Object.assign(all, e.state);
 		}
@@ -138,7 +138,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 	const urlParams = useUrlParams(urlParamsAdapter);
 
 	// Get or generate UUID (last 5 digits)
-	const [wizardUuid, setWizardUuid] = useState<string>(() => {
+	const [flowUuid, setFlowUuid] = useState<string>(() => {
 		const existingUuid = urlParams.getParam(uuidParamName);
 		if (existingUuid) {
 			return existingUuid;
@@ -154,12 +154,12 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 	// Sync UUID with URL param
 	useEffect(() => {
 		const urlUuid = urlParams.getParam(uuidParamName);
-		if (urlUuid && urlUuid !== wizardUuid) {
-			setWizardUuid(urlUuid);
+		if (urlUuid && urlUuid !== flowUuid) {
+			setFlowUuid(urlUuid);
 		} else if (!urlUuid) {
-			urlParams.setParam(uuidParamName, wizardUuid);
+			urlParams.setParam(uuidParamName, flowUuid);
 		}
-	}, [wizardUuid, uuidParamName, urlParams]);
+	}, [flowUuid, uuidParamName, urlParams]);
 
 	// Determine initial page - start with null to ensure validation completes before rendering
 	// We'll validate in useEffect to ensure session storage is accessible
@@ -182,7 +182,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 	const allState = useMemo(() => {
 		if (enableState) {
 			const _ = stateVersion;
-			return stateManager.getAllState(graph, wizardUuid);
+			return stateManager.getAllState(graph, flowUuid);
 		}
 		return mergeEntries(memoryEntries);
 	}, [
@@ -190,7 +190,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		stateVersion,
 		graph,
 		stateManager,
-		wizardUuid,
+		flowUuid,
 		mergeEntries,
 		memoryEntries,
 	]);
@@ -222,7 +222,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 
 		// When state enabled: check if UUID has state in session storage
 		if (enableState) {
-			const uuidExists = stateManager.hasState(wizardUuid);
+			const uuidExists = stateManager.hasState(flowUuid);
 			if (!uuidExists) {
 				setCurrentPage("__expired__");
 				setIsValidating(false);
@@ -238,7 +238,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		urlParams,
 		pageParamName,
 		graph,
-		wizardUuid,
+		flowUuid,
 		stateManager,
 		enableState,
 	]);
@@ -257,7 +257,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		const entryPoint = graph.entryPoint || null;
 		const isEntryPoint = urlPage === entryPoint;
 		const uuidExists = enableState
-			? stateManager.hasState(wizardUuid)
+			? stateManager.hasState(flowUuid)
 			: false;
 
 		// Check page existence first: unknown page → not found (regardless of UUID state)
@@ -299,14 +299,14 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			}
 		}
 
-		// When state enabled: pre-register state for new wizard starts
+		// When state enabled: pre-register state for new flow starts
 		if (enableState) {
 			if (
 				!hasInitializedRef.current &&
 				!uuidExists &&
 				(isEntryPoint || !urlPage)
 			) {
-				stateManager.preRegisterState(graph, wizardUuid);
+				stateManager.preRegisterState(graph, flowUuid);
 				hasInitializedRef.current = true;
 				setStateVersion((prev) => prev + 1);
 			} else if (uuidExists) {
@@ -365,7 +365,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		pageParamName,
 		urlParams,
 		stateManager,
-		wizardUuid,
+		flowUuid,
 		isValidating,
 		enableState,
 	]);
@@ -501,22 +501,22 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 		setIsCheckingSkip(false);
 	}, [currentPage, graph, allState, pageParamName, urlParams, onPageChange]);
 
-	// Complete wizard and clear state (session storage when enabled, in-memory when disabled)
+	// Complete flow and clear state (session storage when enabled, in-memory when disabled)
 	// User is responsible for handling navigation/redirect after calling this
-	const completeWizard = useCallback(() => {
+	const completeFlow = useCallback(() => {
 		if (enableState) {
-			stateManager.clearState(wizardUuid);
+			stateManager.clearState(flowUuid);
 		} else {
 			setMemoryEntries([]);
 		}
-	}, [enableState, stateManager, wizardUuid]);
+	}, [enableState, stateManager, flowUuid]);
 
 	// State update functions
 	const updateState = useCallback(
 		(key: string, value: unknown) => {
 			if (!currentPage) return;
 			if (enableState) {
-				stateManager.setState(wizardUuid, currentPage, key, value);
+				stateManager.setState(flowUuid, currentPage, key, value);
 				setStateVersion((prev) => prev + 1);
 			} else {
 				setMemoryEntries((prev) => {
@@ -530,14 +530,14 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 				});
 			}
 		},
-		[currentPage, enableState, stateManager, wizardUuid],
+		[currentPage, enableState, stateManager, flowUuid],
 	);
 
 	const updateStateBatch = useCallback(
 		(updates: Record<string, unknown>) => {
 			if (!currentPage) return;
 			if (enableState) {
-				stateManager.setStateBatch(wizardUuid, currentPage, updates);
+				stateManager.setStateBatch(flowUuid, currentPage, updates);
 				setStateVersion((prev) => prev + 1);
 			} else {
 				setMemoryEntries((prev) => {
@@ -551,18 +551,18 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 				});
 			}
 		},
-		[currentPage, enableState, stateManager, wizardUuid],
+		[currentPage, enableState, stateManager, flowUuid],
 	);
 
 	const getPageState = useCallback(
 		(page: string) => {
 			if (enableState) {
-				return stateManager.getState(wizardUuid, page);
+				return stateManager.getState(flowUuid, page);
 			}
 			const entry = memoryEntries.find((e) => e.page === page);
 			return entry?.state ?? {};
 		},
-		[enableState, stateManager, wizardUuid, memoryEntries],
+		[enableState, stateManager, flowUuid, memoryEntries],
 	);
 
 	// Helper functions
@@ -600,7 +600,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 	}, [graph, currentPage, allState]);
 
 	// Build context value
-	const contextValue: WizardContextValue = useMemo(
+	const contextValue: FlowContextValue = useMemo(
 		() => ({
 			currentPage,
 			state: allState,
@@ -616,7 +616,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			hasNext,
 			hasPrevious,
 			skipCurrentPage,
-			completeWizard,
+			completeFlow,
 			getUrlParam: urlParams.getParam,
 			getAllUrlParams: urlParams.getAllParams,
 			urlParams: urlParams.params,
@@ -636,7 +636,7 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 			hasNext,
 			hasPrevious,
 			skipCurrentPage,
-			completeWizard,
+			completeFlow,
 			urlParams,
 		],
 	);
@@ -651,19 +651,19 @@ export function Wizard({ graph, config = {} }: WizardProps) {
 
 	if (isCheckingSkip) {
 		return (
-			<WizardContext.Provider value={contextValue}>
+			<FlowContext.Provider value={contextValue}>
 				<div />
-			</WizardContext.Provider>
+			</FlowContext.Provider>
 		);
 	}
 
 	return (
-		<WizardContext.Provider value={contextValue}>
+		<FlowContext.Provider value={contextValue}>
 			<Presenter
 				page={currentPage}
 				node={currentNode}
 				componentLoaders={componentLoadersMap}
 			/>
-		</WizardContext.Provider>
+		</FlowContext.Provider>
 	);
 }

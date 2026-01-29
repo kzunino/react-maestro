@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/wizard-config.ts","./src/components/button.tsx","./src/components/pagelayout.tsx","./src/pages/expired.tsx","./src/pages/landing.tsx","./src/pages/pagea.tsx","./src/pages/pageb.tsx","./src/pages/pagec.tsx","./src/pages/paged.tsx","./src/pages/pagee.tsx","./src/pages/pagenotfound.tsx"],"version":"5.6.3"}

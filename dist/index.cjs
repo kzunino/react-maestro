@@ -20,13 +20,12 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  Flow: () => Flow,
+  FlowContext: () => FlowContext,
   Presenter: () => Presenter,
-  Wizard: () => Wizard,
-  WizardContext: () => WizardContext,
+  createFlowGraph: () => createFlowGraph,
   createPathParamsAdapter: () => createPathParamsAdapter,
   createPathParamsAdapterFromProps: () => createPathParamsAdapterFromProps,
-  createWizardGraph: () => createWizardGraph,
-  createWizardGraphFromNodes: () => createWizardGraphFromNodes,
   getAllNextPages: () => getAllNextPages,
   getNextNonSkippedPage: () => getNextNonSkippedPage,
   getNextPage: () => getNextPage,
@@ -34,18 +33,19 @@ __export(index_exports, {
   getPagesInOrder: () => getPagesInOrder,
   getPreviousNonSkippedPage: () => getPreviousNonSkippedPage,
   getPreviousPage: () => getPreviousPage,
+  initializeFlow: () => initializeFlow,
   registerNode: () => registerNode,
   resolveNextPage: () => resolveNextPage,
   shouldSkipStep: () => shouldSkipStep,
+  useFlow: () => useFlow,
+  useFlowContext: () => useFlowContext,
   useUrlParams: () => useUrlParams,
-  useWizard: () => useWizard,
-  useWizardContext: () => useWizardContext,
   validateGraph: () => validateGraph
 });
 module.exports = __toCommonJS(index_exports);
 
 // src/wizard/graph.ts
-function createWizardGraph() {
+function createFlowGraph() {
   return {
     nodes: /* @__PURE__ */ new Map()
   };
@@ -61,8 +61,8 @@ function registerNode(graph, node) {
     graph.entryPoint = node.currentPage;
   }
 }
-function createWizardGraphFromNodes(nodes, entryPoint) {
-  const graph = createWizardGraph();
+function initializeFlow(nodes, entryPoint) {
+  const graph = createFlowGraph();
   for (const node of nodes) {
     registerNode(graph, node);
   }
@@ -107,11 +107,7 @@ function getNextNonSkippedPage(graph, page, state, visited = /* @__PURE__ */ new
     if (!node) {
       return null;
     }
-    const next = resolveNextPage(node, state);
-    if (next === null) {
-      return null;
-    }
-    const nextPage = Array.isArray(next) ? next[0] : next;
+    const nextPage = resolveNextPage(node, state);
     if (!nextPage || !graph.nodes.has(nextPage)) {
       return null;
     }
@@ -241,20 +237,20 @@ function getPagesInOrder(graph) {
 // src/wizard/hooks.ts
 var import_react2 = require("react");
 
-// src/wizard/WizardContext.tsx
+// src/wizard/FlowContext.tsx
 var import_react = require("react");
-var WizardContext = (0, import_react.createContext)(null);
-function useWizardContext() {
-  const context = (0, import_react.useContext)(WizardContext);
+var FlowContext = (0, import_react.createContext)(null);
+function useFlowContext() {
+  const context = (0, import_react.useContext)(FlowContext);
   if (!context) {
-    throw new Error("useWizardContext must be used within a Wizard component");
+    throw new Error("useFlowContext must be used within a Flow component");
   }
   return context;
 }
 
 // src/wizard/hooks.ts
-function useWizard() {
-  const ctx = useWizardContext();
+function useFlow() {
+  const ctx = useFlowContext();
   const stateKey = (0, import_react2.useCallback)(
     (key) => {
       const value = ctx.state[key] ?? void 0;
@@ -598,11 +594,11 @@ function useUrlParams(adapter = browserUrlParamsAdapter) {
   };
 }
 
-// src/wizard/Wizard.tsx
+// src/wizard/Flow.tsx
 var import_react5 = require("react");
 
 // src/wizard/state.ts
-var STORAGE_PREFIX = "wizard:";
+var STORAGE_PREFIX = "flow:";
 var WizardStateManager = class {
   constructor(prefix = STORAGE_PREFIX) {
     this.prefix = prefix;
@@ -759,13 +755,13 @@ var WizardStateManager = class {
 };
 var defaultStateManager = new WizardStateManager();
 
-// src/wizard/Wizard.tsx
+// src/wizard/Flow.tsx
 var import_jsx_runtime2 = require("react/jsx-runtime");
 function generateShortUuid() {
   const uuid = crypto.randomUUID().replace(/-/g, "");
   return uuid.slice(-5);
 }
-function Wizard({ graph, config = {} }) {
+function Flow({ graph, config = {} }) {
   const {
     urlParamsAdapter,
     pageParamName = "page",
@@ -790,7 +786,7 @@ function Wizard({ graph, config = {} }) {
     return /* @__PURE__ */ new Map();
   }, [componentLoaders]);
   const urlParams = useUrlParams(urlParamsAdapter);
-  const [wizardUuid, setWizardUuid] = (0, import_react5.useState)(() => {
+  const [flowUuid, setFlowUuid] = (0, import_react5.useState)(() => {
     const existingUuid = urlParams.getParam(uuidParamName);
     if (existingUuid) {
       return existingUuid;
@@ -803,12 +799,12 @@ function Wizard({ graph, config = {} }) {
   });
   (0, import_react5.useEffect)(() => {
     const urlUuid = urlParams.getParam(uuidParamName);
-    if (urlUuid && urlUuid !== wizardUuid) {
-      setWizardUuid(urlUuid);
+    if (urlUuid && urlUuid !== flowUuid) {
+      setFlowUuid(urlUuid);
     } else if (!urlUuid) {
-      urlParams.setParam(uuidParamName, wizardUuid);
+      urlParams.setParam(uuidParamName, flowUuid);
     }
-  }, [wizardUuid, uuidParamName, urlParams]);
+  }, [flowUuid, uuidParamName, urlParams]);
   const [currentPage, setCurrentPage] = (0, import_react5.useState)(null);
   const [isValidating, setIsValidating] = (0, import_react5.useState)(true);
   const [isCheckingSkip, setIsCheckingSkip] = (0, import_react5.useState)(false);
@@ -818,7 +814,7 @@ function Wizard({ graph, config = {} }) {
   const allState = (0, import_react5.useMemo)(() => {
     if (enableState) {
       const _ = stateVersion;
-      return stateManager.getAllState(graph, wizardUuid);
+      return stateManager.getAllState(graph, flowUuid);
     }
     return mergeEntries(memoryEntries);
   }, [
@@ -826,7 +822,7 @@ function Wizard({ graph, config = {} }) {
     stateVersion,
     graph,
     stateManager,
-    wizardUuid,
+    flowUuid,
     mergeEntries,
     memoryEntries
   ]);
@@ -848,7 +844,7 @@ function Wizard({ graph, config = {} }) {
       return;
     }
     if (enableState) {
-      const uuidExists = stateManager.hasState(wizardUuid);
+      const uuidExists = stateManager.hasState(flowUuid);
       if (!uuidExists) {
         setCurrentPage("__expired__");
         setIsValidating(false);
@@ -862,7 +858,7 @@ function Wizard({ graph, config = {} }) {
     urlParams,
     pageParamName,
     graph,
-    wizardUuid,
+    flowUuid,
     stateManager,
     enableState
   ]);
@@ -873,7 +869,7 @@ function Wizard({ graph, config = {} }) {
     const urlPage = urlParams.params[pageParamName] ?? null;
     const entryPoint = graph.entryPoint || null;
     const isEntryPoint = urlPage === entryPoint;
-    const uuidExists = enableState ? stateManager.hasState(wizardUuid) : false;
+    const uuidExists = enableState ? stateManager.hasState(flowUuid) : false;
     if (urlPage && !graph.nodes.has(urlPage)) {
       if (currentPage !== "__notfound__") {
         setCurrentPage("__notfound__");
@@ -898,7 +894,7 @@ function Wizard({ graph, config = {} }) {
     }
     if (enableState) {
       if (!hasInitializedRef.current && !uuidExists && (isEntryPoint || !urlPage)) {
-        stateManager.preRegisterState(graph, wizardUuid);
+        stateManager.preRegisterState(graph, flowUuid);
         hasInitializedRef.current = true;
         setStateVersion((prev) => prev + 1);
       } else if (uuidExists) {
@@ -942,7 +938,7 @@ function Wizard({ graph, config = {} }) {
     pageParamName,
     urlParams,
     stateManager,
-    wizardUuid,
+    flowUuid,
     isValidating,
     enableState
   ]);
@@ -1028,18 +1024,18 @@ function Wizard({ graph, config = {} }) {
     }
     setIsCheckingSkip(false);
   }, [currentPage, graph, allState, pageParamName, urlParams, onPageChange]);
-  const completeWizard = (0, import_react5.useCallback)(() => {
+  const completeFlow = (0, import_react5.useCallback)(() => {
     if (enableState) {
-      stateManager.clearState(wizardUuid);
+      stateManager.clearState(flowUuid);
     } else {
       setMemoryEntries([]);
     }
-  }, [enableState, stateManager, wizardUuid]);
+  }, [enableState, stateManager, flowUuid]);
   const updateState = (0, import_react5.useCallback)(
     (key, value) => {
       if (!currentPage) return;
       if (enableState) {
-        stateManager.setState(wizardUuid, currentPage, key, value);
+        stateManager.setState(flowUuid, currentPage, key, value);
         setStateVersion((prev) => prev + 1);
       } else {
         setMemoryEntries((prev) => {
@@ -1053,13 +1049,13 @@ function Wizard({ graph, config = {} }) {
         });
       }
     },
-    [currentPage, enableState, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, flowUuid]
   );
   const updateStateBatch = (0, import_react5.useCallback)(
     (updates) => {
       if (!currentPage) return;
       if (enableState) {
-        stateManager.setStateBatch(wizardUuid, currentPage, updates);
+        stateManager.setStateBatch(flowUuid, currentPage, updates);
         setStateVersion((prev) => prev + 1);
       } else {
         setMemoryEntries((prev) => {
@@ -1073,17 +1069,17 @@ function Wizard({ graph, config = {} }) {
         });
       }
     },
-    [currentPage, enableState, stateManager, wizardUuid]
+    [currentPage, enableState, stateManager, flowUuid]
   );
   const getPageState = (0, import_react5.useCallback)(
     (page) => {
       if (enableState) {
-        return stateManager.getState(wizardUuid, page);
+        return stateManager.getState(flowUuid, page);
       }
       const entry = memoryEntries.find((e) => e.page === page);
       return entry?.state ?? {};
     },
-    [enableState, stateManager, wizardUuid, memoryEntries]
+    [enableState, stateManager, flowUuid, memoryEntries]
   );
   const getCurrentNode = (0, import_react5.useCallback)(() => {
     if (!currentPage) {
@@ -1128,7 +1124,7 @@ function Wizard({ graph, config = {} }) {
       hasNext,
       hasPrevious,
       skipCurrentPage,
-      completeWizard,
+      completeFlow,
       getUrlParam: urlParams.getParam,
       getAllUrlParams: urlParams.getAllParams,
       urlParams: urlParams.params
@@ -1148,7 +1144,7 @@ function Wizard({ graph, config = {} }) {
       hasNext,
       hasPrevious,
       skipCurrentPage,
-      completeWizard,
+      completeFlow,
       urlParams
     ]
   );
@@ -1157,9 +1153,9 @@ function Wizard({ graph, config = {} }) {
     return null;
   }
   if (isCheckingSkip) {
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", {}) });
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(FlowContext.Provider, { value: contextValue, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", {}) });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(WizardContext.Provider, { value: contextValue, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(FlowContext.Provider, { value: contextValue, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
     Presenter,
     {
       page: currentPage,
@@ -1170,13 +1166,12 @@ function Wizard({ graph, config = {} }) {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  Flow,
+  FlowContext,
   Presenter,
-  Wizard,
-  WizardContext,
+  createFlowGraph,
   createPathParamsAdapter,
   createPathParamsAdapterFromProps,
-  createWizardGraph,
-  createWizardGraphFromNodes,
   getAllNextPages,
   getNextNonSkippedPage,
   getNextPage,
@@ -1184,12 +1179,13 @@ function Wizard({ graph, config = {} }) {
   getPagesInOrder,
   getPreviousNonSkippedPage,
   getPreviousPage,
+  initializeFlow,
   registerNode,
   resolveNextPage,
   shouldSkipStep,
+  useFlow,
+  useFlowContext,
   useUrlParams,
-  useWizard,
-  useWizardContext,
   validateGraph
 });
 //# sourceMappingURL=index.cjs.map

@@ -1,9 +1,6 @@
-// Types
-
 // Graph orchestration
 export {
-	createWizardGraph,
-	createWizardGraphFromNodes,
+	createFlowGraph,
 	getAllNextPages,
 	getNextNonSkippedPage,
 	getNextPage,
@@ -11,13 +8,14 @@ export {
 	getPagesInOrder,
 	getPreviousNonSkippedPage,
 	getPreviousPage,
+	initializeFlow,
 	registerNode,
 	resolveNextPage,
 	shouldSkipStep,
 	validateGraph,
 } from "@/wizard/graph";
 // Hooks
-export { useWizard } from "@/wizard/hooks";
+export { useFlow } from "@/wizard/hooks";
 // Presenter
 export {
 	Presenter,
@@ -30,24 +28,24 @@ export {
 	type PathConfig,
 } from "@/wizard/path-params";
 export type {
+	FlowContextValue,
+	FlowGraph,
+	FlowNode,
+	FlowState,
 	NextPageResolver,
 	UrlParamsAdapter,
-	UseWizardReturn,
-	WizardContextValue,
-	WizardGraph,
-	WizardNode,
-	WizardState,
+	UseFlowReturn,
 } from "@/wizard/types";
 // URL params
 export { useUrlParams } from "@/wizard/url-params";
-// Main Wizard component
+// Main Flow component
 export {
-	Wizard,
-	type WizardConfig,
-	type WizardProps,
-} from "@/wizard/Wizard";
+	Flow,
+	type FlowConfig,
+	type FlowProps,
+} from "@/wizard/Flow";
 // Context
 export {
-	useWizardContext,
-	WizardContext,
-} from "@/wizard/WizardContext";
+	FlowContext,
+	useFlowContext,
+} from "@/wizard/FlowContext";

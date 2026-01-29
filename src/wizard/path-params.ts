@@ -224,22 +224,22 @@ export function createPathParamsAdapter(config: PathConfig): UrlParamsAdapter {
  * @example
  * ```tsx
  * // Next.js example
- * export default function WizardPage({ params }: { params: Promise<{ id: string; page: string }> }) {
+ * export default function FlowPage({ params }: { params: Promise<{ id: string; page: string }> }) {
  *   const resolvedParams = use(params);
  *   const adapter = createPathParamsAdapterFromProps(
  *     resolvedParams,
- *     { template: "/[id]/[page]", basePath: "/wizard" }
+ *     { template: "/[id]/[page]", basePath: "/flow" }
  *   );
- *   return <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />;
+ *   return <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />;
  * }
  *
  * // Other frameworks (Remix, etc.)
- * export default function WizardPage({ params }: { params: { id: string; page: string } }) {
+ * export default function FlowPage({ params }: { params: { id: string; page: string } }) {
  *   const adapter = createPathParamsAdapterFromProps(
  *     params,
- *     { template: "/[id]/[page]", basePath: "/wizard" }
+ *     { template: "/[id]/[page]", basePath: "/flow" }
  *   );
- *   return <Wizard graph={graph} config={{ urlParamsAdapter: adapter }} />;
+ *   return <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />;
  * }
  * ```
  */

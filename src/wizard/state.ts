@@ -1,17 +1,17 @@
 import { getPagesInOrder } from "@/wizard/graph";
-import type { WizardGraph, WizardState } from "@/wizard/types";
+import type { FlowGraph, FlowState } from "@/wizard/types";
 
 /**
- * Session storage key prefix for wizard state
+ * Session storage key prefix for flow state
  */
-const STORAGE_PREFIX = "wizard:";
+const STORAGE_PREFIX = "flow:";
 
 /**
  * Structure for storing page state in session storage
  */
 type PageStateEntry = {
 	page: string;
-	state: WizardState;
+	state: FlowState;
 };
 
 /**
@@ -75,7 +75,7 @@ export class WizardStateManager {
 	 * Pre-registers all expected state keys from the graph
 	 * This allows us to see all expected state upfront
 	 */
-	preRegisterState(graph: WizardGraph, uuid: string): void {
+	preRegisterState(graph: FlowGraph, uuid: string): void {
 		if (typeof window === "undefined" || !window.sessionStorage) {
 			return;
 		}
@@ -98,7 +98,7 @@ export class WizardStateManager {
 	/**
 	 * Gets state for a specific page
 	 */
-	getState(uuid: string, page: string): WizardState {
+	getState(uuid: string, page: string): FlowState {
 		const entries = this.getPageStateEntries(uuid);
 		const entry = entries.find((e) => e.page === page);
 		return entry?.state || {};
@@ -143,8 +143,8 @@ export class WizardStateManager {
 	/**
 	 * Gets accumulated state from all pages in the graph
 	 */
-	getAllState(_graph: WizardGraph, uuid: string): WizardState {
-		const allState: WizardState = {};
+	getAllState(_graph: FlowGraph, uuid: string): FlowState {
+		const allState: FlowState = {};
 		const entries = this.getPageStateEntries(uuid);
 
 		// Merge state from all pages (later pages override earlier ones)
@@ -158,8 +158,8 @@ export class WizardStateManager {
 	/**
 	 * Gets state for all pages up to and including the specified page
 	 */
-	getStateUpTo(_graph: WizardGraph, uuid: string, page: string): WizardState {
-		const allState: WizardState = {};
+	getStateUpTo(_graph: FlowGraph, uuid: string, page: string): FlowState {
+		const allState: FlowState = {};
 		const entries = this.getPageStateEntries(uuid);
 		const pages = getPagesInOrder(_graph);
 

@@ -1,18 +1,18 @@
-import type { WizardGraph, WizardNode, WizardState } from "@/wizard/types";
+import type { FlowGraph, FlowNode, FlowState } from "@/wizard/types";
 
 /**
- * Creates a new empty wizard graph
+ * Creates a new empty flow graph
  */
-export function createWizardGraph(): WizardGraph {
+export function createFlowGraph(): FlowGraph {
 	return {
-		nodes: new Map<string, WizardNode>(),
+		nodes: new Map<string, FlowNode>(),
 	};
 }
 
 /**
- * Registers a node in the wizard graph
+ * Registers a node in the flow graph
  */
-export function registerNode(graph: WizardGraph, node: WizardNode): void {
+export function registerNode(graph: FlowGraph, node: FlowNode): void {
 	if (graph.nodes.has(node.currentPage)) {
 		throw new Error(
 			`Node with currentPage "${node.currentPage}" already exists in graph`,
@@ -28,14 +28,14 @@ export function registerNode(graph: WizardGraph, node: WizardNode): void {
 }
 
 /**
- * Creates a wizard graph from an array of nodes
- * This is a convenience function for defining complete wizards in one place
+ * Initialize a flow from an array of nodes.
+ * Convenience for defining complete flows in one place.
  */
-export function createWizardGraphFromNodes(
-	nodes: WizardNode[],
+export function initializeFlow(
+	nodes: FlowNode[],
 	entryPoint?: string,
-): WizardGraph {
-	const graph = createWizardGraph();
+): FlowGraph {
+	const graph = createFlowGraph();
 
 	for (const node of nodes) {
 		registerNode(graph, node);
@@ -56,9 +56,9 @@ export function createWizardGraphFromNodes(
  * Gets a node by its page identifier
  */
 export function getNode(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	page: string,
-): WizardNode | undefined {
+): FlowNode | undefined {
 	return graph.nodes.get(page);
 }
 
@@ -66,9 +66,9 @@ export function getNode(
  * Checks if a step should be skipped based on its shouldSkip function and current state
  */
 export function shouldSkipStep(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	page: string,
-	state: WizardState,
+	state: FlowState,
 ): boolean {
 	const node = getNode(graph, page);
 	if (!node) {
@@ -86,8 +86,8 @@ export function shouldSkipStep(
  * Resolves the next page for a given node based on current state
  */
 export function resolveNextPage(
-	node: WizardNode,
-	state: WizardState,
+	node: FlowNode,
+	state: FlowState,
 ): string | null {
 	if (!node.nextPage) {
 		return null;
@@ -106,9 +106,9 @@ export function resolveNextPage(
  * Recursively finds the next non-skipped page, preventing infinite loops
  */
 export function getNextNonSkippedPage(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	page: string,
-	state: WizardState,
+	state: FlowState,
 	visited: Set<string> = new Set(),
 ): string | null {
 	// Prevent infinite loops
@@ -125,14 +125,7 @@ export function getNextNonSkippedPage(
 			return null;
 		}
 
-		const next = resolveNextPage(node, state);
-		if (next === null) {
-			return null;
-		}
-
-		// If it's an array, try the first page
-		const nextPage = Array.isArray(next) ? next[0] : next;
-
+		const nextPage = resolveNextPage(node, state);
 		if (!nextPage || !graph.nodes.has(nextPage)) {
 			return null;
 		}
@@ -150,9 +143,9 @@ export function getNextNonSkippedPage(
  * Automatically skips steps that should be skipped
  */
 export function getNextPage(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	currentPage: string,
-	state: WizardState,
+	state: FlowState,
 ): string | null {
 	const currentNode = getNode(graph, currentPage);
 	if (!currentNode) {
@@ -180,9 +173,9 @@ export function getNextPage(
  * @deprecated Consider using getNextPage instead
  */
 export function getAllNextPages(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	currentPage: string,
-	state: WizardState,
+	state: FlowState,
 ): string[] {
 	const nextPage = getNextPage(graph, currentPage, state);
 	return nextPage ? [nextPage] : [];
@@ -192,9 +185,9 @@ export function getAllNextPages(
  * Recursively finds the previous non-skipped page, preventing infinite loops
  */
 export function getPreviousNonSkippedPage(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	page: string,
-	state: WizardState,
+	state: FlowState,
 	visited: Set<string> = new Set(),
 ): string | null {
 	// Prevent infinite loops
@@ -241,9 +234,9 @@ export function getPreviousNonSkippedPage(
  * Automatically skips over steps that should be skipped
  */
 export function getPreviousPage(
-	graph: WizardGraph,
+	graph: FlowGraph,
 	currentPage: string,
-	state: WizardState,
+	state: FlowState,
 ): string | null {
 	const currentNode = getNode(graph, currentPage);
 	if (!currentNode) {
@@ -269,7 +262,7 @@ export function getPreviousPage(
 /**
  * Validates that all referenced pages in the graph exist
  */
-export function validateGraph(graph: WizardGraph): {
+export function validateGraph(graph: FlowGraph): {
 	valid: boolean;
 	errors: string[];
 } {
@@ -312,7 +305,7 @@ export function validateGraph(graph: WizardGraph): {
  * Gets all pages in the graph in topological order (if possible)
  * Falls back to registration order if cycles exist
  */
-export function getPagesInOrder(graph: WizardGraph): string[] {
+export function getPagesInOrder(graph: FlowGraph): string[] {
 	const visited = new Set<string>();
 	const result: string[] = [];
 

@@ -1,20 +1,20 @@
 "use client";
 
 import { useCallback } from "react";
-import type { UseWizardReturn } from "@/wizard/types";
-import { useWizardContext } from "@/wizard/WizardContext";
+import type { UseFlowReturn } from "@/wizard/types";
+import { useFlowContext } from "@/wizard/FlowContext";
 
 /**
- * Single hook to access all wizard functionality.
+ * Single hook to access all flow functionality.
  * Use one import and destructure what you need.
  *
  * @example
- * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext, hasPrevious } = useWizard();
+ * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext, hasPrevious } = useFlow();
  * const [name, setName] = stateKey("name");
  * // goToPage(page) — jump to any node, preserve history (push). skipToPage(page) — same, replace (no back).
  */
-export function useWizard(): UseWizardReturn {
-	const ctx = useWizardContext();
+export function useFlow(): UseFlowReturn {
+	const ctx = useFlowContext();
 
 	const stateKey = useCallback(
 		<T = unknown>(key: string) => {

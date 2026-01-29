@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createPathParamsAdapter, Wizard } from "react-maestro";
+import { createPathParamsAdapter, Flow } from "react-maestro";
 import Landing from "./pages/Landing";
 import { componentLoaders, graph } from "./wizard-config";
 
@@ -128,7 +128,7 @@ export default function App() {
 						← Back to Landing
 					</button>
 				</div>
-				<Wizard
+				<Flow
 					graph={graph}
 					config={{
 						componentLoaders,

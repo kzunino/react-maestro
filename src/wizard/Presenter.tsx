@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo } from "react";
-import type { ComponentLoader, WizardNode } from "@/wizard/types";
+import type { ComponentLoader, FlowNode } from "@/wizard/types";
 
 /**
  * Props for the Presenter component
@@ -13,7 +13,7 @@ export type PresenterProps = {
 	/**
 	 * Current node definition
 	 */
-	node: WizardNode | undefined;
+	node: FlowNode | undefined;
 
 	/**
 	 * Map of page identifiers to component loaders
@@ -23,7 +23,7 @@ export type PresenterProps = {
 };
 
 /**
- * Presenter component that dynamically loads and renders wizard pages
+ * Presenter component that dynamically loads and renders flow pages
  * Uses React.lazy for code splitting and tree shaking
  * Dynamically loads components based on the provided componentLoaders map
  * Components should handle their own loading states
