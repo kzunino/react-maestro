@@ -1,5 +1,5 @@
 import { getPagesInOrder } from "@/flow/graphHelpers";
-import type { FlowGraph, FlowState } from "@/flow/types";
+import type { FlowGraph, FlowState, FlowStateByPage } from "@/flow/types";
 
 /**
  * Session storage key prefix for flow state
@@ -141,41 +141,37 @@ export class WizardStateManager {
 	}
 
 	/**
-	 * Gets accumulated state from all pages in the graph
+	 * Gets accumulated state from all pages, keyed by page.
+	 * Each page has its own namespace so the same key (e.g. "name") won't overwrite.
 	 */
-	getAllState(_graph: FlowGraph, uuid: string): FlowState {
-		const allState: FlowState = {};
+	getAllState(_graph: FlowGraph, uuid: string): FlowStateByPage {
+		const byPage: FlowStateByPage = {};
 		const entries = this.getPageStateEntries(uuid);
 
-		// Merge state from all pages (later pages override earlier ones)
 		for (const entry of entries) {
-			Object.assign(allState, entry.state);
+			byPage[entry.page] = { ...entry.state };
 		}
 
-		return allState;
+		return byPage;
 	}
 
 	/**
-	 * Gets state for all pages up to and including the specified page
+	 * Gets state for all pages up to and including the specified page, keyed by page
 	 */
-	getStateUpTo(_graph: FlowGraph, uuid: string, page: string): FlowState {
-		const allState: FlowState = {};
+	getStateUpTo(_graph: FlowGraph, uuid: string, page: string): FlowStateByPage {
+		const byPage: FlowStateByPage = {};
 		const entries = this.getPageStateEntries(uuid);
 		const pages = getPagesInOrder(_graph);
 
-		// Only include pages up to the specified page
 		for (const p of pages) {
 			const entry = entries.find((e) => e.page === p);
 			if (entry) {
-				Object.assign(allState, entry.state);
+				byPage[p] = { ...entry.state };
 			}
-
-			if (p === page) {
-				break;
-			}
+			if (p === page) break;
 		}
 
-		return allState;
+		return byPage;
 	}
 
 	/**

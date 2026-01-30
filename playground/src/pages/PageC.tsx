@@ -1,53 +1,49 @@
-import { useEffect, useState } from "react";
 import { useFlow } from "react-maestro";
 import { Button } from "../components/Button";
 import { PageLayout } from "../components/PageLayout";
 
 export default function PageC() {
-	const { goToNext, goToPrevious, skipCurrentPage } = useFlow();
-	const [isChecking, setIsChecking] = useState(true);
+	const { goToNext, goToPrevious, stateKey } = useFlow();
+	const [name, setName] = stateKey<string>("name");
+	const [notes, setNotes] = stateKey<string>("notes");
 
-	// Example: Check if page should be skipped after loading (e.g., API call)
-	// This demonstrates conditional skipping during page load
-	useEffect(() => {
-		// Simulate an async check (API call, etc.)
-		const checkShouldSkip = async () => {
-			// Simulate API delay
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-
-			// Example: Check some condition (could be API response, state, etc.)
-			// In this case, we'll always skip, but you could check state or API response
-			const shouldSkip = true; // Replace with your actual condition
-
-			if (shouldSkip) {
-				// Skip this page and navigate to next
-				skipCurrentPage();
-			} else {
-				setIsChecking(false);
-			}
-		};
-
-		checkShouldSkip();
-	}, [skipCurrentPage]);
-
-	// Show loader while checking
-	if (isChecking) {
-		return (
-			<PageLayout>
-				<div className="flex items-center justify-center min-h-[400px]">
-					<div className="text-muted-foreground">Checking conditions...</div>
-				</div>
-			</PageLayout>
-		);
-	}
-
-	// This content would only show if the page is not skipped
 	return (
 		<PageLayout>
-			<h1 className="text-3xl font-bold">Page C</h1>
+			<h1 className="text-3xl font-bold">Page C - Details</h1>
 			<p className="text-muted-foreground">
-				This page would only render if the skip check returned false.
+				Optional details step. Uncheck &quot;Skip details step&quot; on Page B
+				to see this. Uses same &quot;name&quot; key as Page A — stored in
+				page-scoped state, no collision.
 			</p>
+
+			<div className="space-y-4">
+				<div>
+					<label htmlFor="pageC-name" className="block text-sm font-medium mb-1">
+						Nickname / Display name
+					</label>
+					<input
+						id="pageC-name"
+						type="text"
+						value={name || ""}
+						onChange={(e) => setName(e.target.value)}
+						className="w-full px-3 py-2 border rounded-md"
+						placeholder="e.g. How friends call you"
+					/>
+				</div>
+				<div>
+					<label htmlFor="notes" className="block text-sm font-medium mb-1">
+						Additional notes
+					</label>
+					<textarea
+						id="notes"
+						value={notes || ""}
+						onChange={(e) => setNotes(e.target.value)}
+						className="w-full px-3 py-2 border rounded-md"
+						placeholder="Any extra info..."
+						rows={3}
+					/>
+				</div>
+			</div>
 
 			<div className="flex justify-between">
 				<Button variant="secondary" onClick={goToPrevious}>

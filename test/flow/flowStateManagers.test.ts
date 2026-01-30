@@ -29,24 +29,24 @@ describe("flowStateManagers", () => {
 		expect(manager.getState("uuid-789", "b")).toEqual({ x: 1, y: 2 });
 	});
 
-	it("getAllState merges all page state", () => {
+	it("getAllState returns state keyed by page (no overwrite)", () => {
 		const manager = new WizardStateManager("flow-test:");
 		manager.setState("uuid-all", "a", "foo", "A");
 		manager.setState("uuid-all", "b", "bar", "B");
 		expect(manager.getAllState(graph, "uuid-all")).toEqual({
-			foo: "A",
-			bar: "B",
+			a: { foo: "A" },
+			b: { bar: "B" },
 		});
 	});
 
-	it("getStateUpTo returns state only up to given page", () => {
+	it("getStateUpTo returns state keyed by page up to given page", () => {
 		const manager = new WizardStateManager("flow-test:");
 		manager.setState("uuid-upto", "a", "x", 1);
 		manager.setState("uuid-upto", "b", "y", 2);
 		manager.setState("uuid-upto", "c", "z", 3);
 		expect(manager.getStateUpTo(graph, "uuid-upto", "b")).toEqual({
-			x: 1,
-			y: 2,
+			a: { x: 1 },
+			b: { y: 2 },
 		});
 	});
 

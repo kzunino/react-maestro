@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { FlowStateByPage } from "react-maestro";
 import { createPathParamsAdapter, Flow } from "react-maestro";
 import Landing from "./pages/Landing";
 import { componentLoaders, graph } from "./wizard-config";
 
 const PAGE_WIDTH = "40rem";
 
-// Stable adapters per route type – reuse so Wizard's useUrlParams doesn't churn on popstate
+// Stable adapters per route type – reuse so Flow's useUrlParams doesn't churn on popstate
 const pattern1Adapter = createPathParamsAdapter({
 	template: "/[id]/page/[page]",
 });
@@ -56,6 +57,23 @@ export default function App() {
 		// Show landing only if path is "/" and no query params
 		return (pathname === "/" || pathname === "") && !search;
 	});
+	const [flowPage, setFlowPage] = useState<string | null>(null);
+	const [flowPreviousPage, setFlowPreviousPage] = useState<string | null>(null);
+	const [flowState, setFlowState] = useState<FlowStateByPage>({});
+
+	const handlePageChange = useCallback(
+		(page: string | null, previousPage: string | null, state: FlowStateByPage) => {
+			setFlowPage(page);
+			setFlowPreviousPage(previousPage);
+			setFlowState(state ?? {});
+			console.log("[onPageChange]", {
+				page,
+				previousPage,
+				state,
+			});
+		},
+		[],
+	);
 
 	// Listen for navigation changes
 	useEffect(() => {
@@ -66,7 +84,6 @@ export default function App() {
 			setRouteConfig(getRouteConfig());
 		};
 
-		// Also listen for custom route change events
 		const handleRouteChange = () => {
 			const pathname = window.location.pathname;
 			const search = window.location.search;
@@ -109,24 +126,35 @@ export default function App() {
 					marginRight: "auto",
 				}}
 			>
-				<div className="mb-4 p-2 bg-gray-100 rounded text-sm">
-					<strong>Route:</strong>{" "}
-					{routeConfig.type === "query" && "Query Params"}
-					{routeConfig.type === "pattern1" && "/[id]/page/[page]"}
-					{routeConfig.type === "pattern2" &&
-						"/[id]/[type]/[someOtherOptions]/[page]"}
-					{" | "}
-					<button
-						type="button"
-						onClick={() => {
-							window.history.pushState({}, "", "/");
-							window.dispatchEvent(new PopStateEvent("popstate"));
-							window.dispatchEvent(new CustomEvent("routechange"));
-						}}
-						className="text-blue-600 hover:underline"
-					>
-						← Back to Landing
-					</button>
+				<div className="mb-4 space-y-2">
+					<div className="p-2 bg-gray-100 rounded text-sm">
+						<strong>Route:</strong>{" "}
+						{routeConfig.type === "query" && "Query Params"}
+						{routeConfig.type === "pattern1" && "/[id]/page/[page]"}
+						{routeConfig.type === "pattern2" &&
+							"/[id]/[type]/[someOtherOptions]/[page]"}
+						{" | "}
+						<button
+							type="button"
+							onClick={() => {
+								window.history.pushState({}, "", "/");
+								window.dispatchEvent(new PopStateEvent("popstate"));
+								window.dispatchEvent(new CustomEvent("routechange"));
+							}}
+							className="text-blue-600 hover:underline"
+						>
+							← Back to Landing
+						</button>
+					</div>
+					<div className="p-2 bg-amber-50 border border-amber-200 rounded text-sm font-mono break-all">
+						<strong>onPageChange:</strong> page=
+						{flowPage ?? graph.entryPoint ?? "—"} | previous=
+						{flowPreviousPage ?? "null"}
+						{flowState != null &&
+							Object.keys(flowState).length > 0 && (
+								<> | state={JSON.stringify(flowState)}</>
+							)}
+					</div>
 				</div>
 				<Flow
 					graph={graph}
@@ -135,6 +163,7 @@ export default function App() {
 						urlParamsAdapter: routeConfig.adapter,
 						pageParamName: routeConfig.pageParamName,
 						uuidParamName: routeConfig.uuidParamName,
+						onPageChange: handlePageChange,
 					}}
 				/>
 			</div>

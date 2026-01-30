@@ -29,7 +29,7 @@ describe("useFlow", () => {
 
 	const mockValue = {
 		currentPage: "step1",
-		state: { name: "Bob" },
+		state: { step1: { name: "Bob" } } as Record<string, Record<string, unknown>>,
 		goToNext: () => {},
 		goToPrevious: () => {},
 		goToPage: () => {},

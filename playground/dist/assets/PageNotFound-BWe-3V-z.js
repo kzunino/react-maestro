@@ -1,1 +1,0 @@
-import{j as e}from"./index-BETZax7Q.js";import{P as o}from"./PageLayout-CFSerNio.js";function s(){return e.jsxs(o,{children:[e.jsx("h2",{children:"Page not found"}),e.jsx("p",{children:"The requested page does not exist."})]})}export{s as default};

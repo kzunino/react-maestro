@@ -14,6 +14,7 @@ import type {
 	FlowContextValue,
 	FlowGraph,
 	FlowState,
+	FlowStateByPage,
 	UrlParamsAdapter,
 } from "@/flow/types";
 import { useUrlParams } from "@/flow/useURLParams";
@@ -57,9 +58,15 @@ export type FlowConfig = {
 	uuidParamName?: string;
 
 	/**
-	 * Optional callback when page changes
+	 * Optional callback when page changes. Receives the new page, previous page
+	 * (null on initial load), and the accumulated state (merged from all pages).
+	 * Fires on initial load and every navigation.
 	 */
-	onPageChange?: (page: string | null, previousPage: string | null) => void;
+	onPageChange?: (
+		page: string | null,
+		previousPage: string | null,
+		state: FlowStateByPage,
+	) => void;
 
 	/**
 	 * Whether to use the internal state system (session storage).
@@ -118,12 +125,12 @@ export function Flow({ graph, config = {} }: FlowProps) {
 	type PageStateEntry = { page: string; state: FlowState };
 	const [memoryEntries, setMemoryEntries] = useState<PageStateEntry[]>([]);
 
-	const mergeEntries = useCallback((entries: PageStateEntry[]): FlowState => {
-		const all: FlowState = {};
+	const mergeEntries = useCallback((entries: PageStateEntry[]): FlowStateByPage => {
+		const byPage: FlowStateByPage = {};
 		for (const e of entries) {
-			Object.assign(all, e.state);
+			byPage[e.page] = { ...e.state };
 		}
-		return all;
+		return byPage;
 	}, []);
 
 	// Build component loaders map from graph if not provided
@@ -208,8 +215,10 @@ export function Flow({ graph, config = {} }: FlowProps) {
 
 		// If we're on entry point or no page param, no validation needed (will go to entry point)
 		if (isEntryPoint || !urlPage) {
-			setCurrentPage(urlPage || entryPoint);
+			const initialPage = urlPage || entryPoint;
+			setCurrentPage(initialPage);
 			setIsValidating(false);
+			onPageChange?.(initialPage, null, allState);
 			return;
 		}
 
@@ -217,6 +226,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 		if (!graph.nodes.has(urlPage)) {
 			setCurrentPage("__notfound__");
 			setIsValidating(false);
+			onPageChange?.("__notfound__", null, allState);
 			return;
 		}
 
@@ -226,6 +236,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 			if (!uuidExists) {
 				setCurrentPage("__expired__");
 				setIsValidating(false);
+				onPageChange?.("__expired__", null, allState);
 				return;
 			}
 		}
@@ -233,6 +244,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 		// Validation passes
 		setCurrentPage(urlPage);
 		setIsValidating(false);
+		onPageChange?.(urlPage, null, allState);
 	}, [
 		isValidating,
 		urlParams,
@@ -241,6 +253,8 @@ export function Flow({ graph, config = {} }: FlowProps) {
 		flowUuid,
 		stateManager,
 		enableState,
+		onPageChange,
+		allState,
 	]);
 
 	// Sync current page with URL param changes (browser back/forward)
@@ -262,6 +276,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 		if (urlPage && !graph.nodes.has(urlPage)) {
 			if (currentPage !== "__notfound__") {
 				setCurrentPage("__notfound__");
+				onPageChange?.("__notfound__", currentPage, allState);
 			}
 			return;
 		}
@@ -270,6 +285,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 		if (enableState && !uuidExists && urlPage && !isEntryPoint) {
 			if (currentPage !== "__expired__") {
 				setCurrentPage("__expired__");
+				onPageChange?.("__expired__", currentPage, allState);
 			}
 			return;
 		}
@@ -281,6 +297,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 			graph.nodes.has(urlPage)
 		) {
 			setCurrentPage(urlPage);
+			onPageChange?.(urlPage, currentPage, allState);
 		}
 
 		// If we're already showing an error page but validation passes, don't proceed
@@ -292,6 +309,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 				(enableState ? uuidExists : true)
 			) {
 				setCurrentPage(urlPage);
+				onPageChange?.(urlPage, currentPage, allState);
 			} else {
 				return;
 			}
@@ -333,12 +351,12 @@ export function Flow({ graph, config = {} }: FlowProps) {
 					// Replace the skipped page in URL with the appropriate non-skipped page
 					urlParams.replaceParam(pageParamName, targetPage);
 					setCurrentPage(targetPage);
-					onPageChange?.(targetPage, currentPage);
+					onPageChange?.(targetPage, currentPage, allState);
 				}
 			} else {
 				// Normal navigation - page is not skipped, URL drives the state
 				setCurrentPage(urlPage);
-				onPageChange?.(urlPage, currentPage);
+				onPageChange?.(urlPage, currentPage, allState);
 			}
 		} else if (!urlPage) {
 			// If URL has no page param, sync to entry point
@@ -346,12 +364,12 @@ export function Flow({ graph, config = {} }: FlowProps) {
 				const previousPage = currentPage;
 				setCurrentPage(entryPoint);
 				urlParams.setParam(pageParamName, entryPoint);
-				onPageChange?.(entryPoint, previousPage);
+				onPageChange?.(entryPoint, previousPage, allState);
 			} else if (!entryPoint && currentPage) {
 				// No entry point and no URL param, clear current page
 				const previousPage = currentPage;
 				setCurrentPage(null);
-				onPageChange?.(null, previousPage);
+				onPageChange?.(null, previousPage, allState);
 			}
 		}
 	}, [
@@ -390,7 +408,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 				// Replace URL (don't add to history) since we're skipping
 				urlParams.replaceParam(pageParamName, nextPage);
 				setCurrentPage(nextPage);
-				onPageChange?.(nextPage, currentPage);
+				onPageChange?.(nextPage, currentPage, allState);
 			}
 
 			setIsCheckingSkip(false);
@@ -432,7 +450,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 		}
 
 		setCurrentPage(nextPage);
-		onPageChange?.(nextPage, previousPage);
+		onPageChange?.(nextPage, previousPage, allState);
 	}, [graph, currentPage, allState, onPageChange, pageParamName, urlParams]);
 
 	const goToPrevious = useCallback(() => {
@@ -454,9 +472,9 @@ export function Flow({ graph, config = {} }: FlowProps) {
 
 			setCurrentPage(page);
 			urlParams.setParam(pageParamName, page);
-			onPageChange?.(page, previousPage);
+			onPageChange?.(page, previousPage, allState);
 		},
-		[graph, currentPage, onPageChange, pageParamName, urlParams],
+		[graph, currentPage, allState, onPageChange, pageParamName, urlParams],
 	);
 
 	const skipToPage = useCallback(
@@ -470,9 +488,9 @@ export function Flow({ graph, config = {} }: FlowProps) {
 
 			setCurrentPage(page);
 			urlParams.replaceParam(pageParamName, page);
-			onPageChange?.(page, previousPage);
+			onPageChange?.(page, previousPage, allState);
 		},
-		[graph, currentPage, onPageChange, pageParamName, urlParams],
+		[graph, currentPage, allState, onPageChange, pageParamName, urlParams],
 	);
 
 	// Skip current page and navigate to next non-skipped page
@@ -493,7 +511,7 @@ export function Flow({ graph, config = {} }: FlowProps) {
 			// This ensures skipped pages don't appear in browser history
 			urlParams.replaceParam(pageParamName, nextPage);
 			setCurrentPage(nextPage);
-			onPageChange?.(nextPage, currentPage);
+			onPageChange?.(nextPage, currentPage, allState);
 		}
 
 		setIsCheckingSkip(false);

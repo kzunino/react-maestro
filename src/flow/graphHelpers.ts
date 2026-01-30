@@ -1,4 +1,4 @@
-import type { FlowGraph, FlowNode, FlowState } from "@/flow/types";
+import type { FlowGraph, FlowNode, FlowStateByPage } from "@/flow/types";
 
 /**
  * Creates a new empty flow graph
@@ -65,7 +65,7 @@ export function getNode(graph: FlowGraph, page: string): FlowNode | undefined {
 export function shouldSkipStep(
 	graph: FlowGraph,
 	page: string,
-	state: FlowState,
+	state: FlowStateByPage,
 ): boolean {
 	const node = getNode(graph, page);
 	if (!node) {
@@ -84,7 +84,7 @@ export function shouldSkipStep(
  */
 export function resolveNextPage(
 	node: FlowNode,
-	state: FlowState,
+	state: FlowStateByPage,
 ): string | null {
 	if (!node.nextPage) {
 		return null;
@@ -105,7 +105,7 @@ export function resolveNextPage(
 export function getNextNonSkippedPage(
 	graph: FlowGraph,
 	page: string,
-	state: FlowState,
+	state: FlowStateByPage,
 	visited: Set<string> = new Set(),
 ): string | null {
 	// Prevent infinite loops
@@ -142,7 +142,7 @@ export function getNextNonSkippedPage(
 export function getNextPage(
 	graph: FlowGraph,
 	currentPage: string,
-	state: FlowState,
+	state: FlowStateByPage,
 ): string | null {
 	const currentNode = getNode(graph, currentPage);
 	if (!currentNode) {
@@ -172,7 +172,7 @@ export function getNextPage(
 export function getAllNextPages(
 	graph: FlowGraph,
 	currentPage: string,
-	state: FlowState,
+	state: FlowStateByPage,
 ): string[] {
 	const nextPage = getNextPage(graph, currentPage, state);
 	return nextPage ? [nextPage] : [];
@@ -184,7 +184,7 @@ export function getAllNextPages(
 export function getPreviousNonSkippedPage(
 	graph: FlowGraph,
 	page: string,
-	state: FlowState,
+	state: FlowStateByPage,
 	visited: Set<string> = new Set(),
 ): string | null {
 	// Prevent infinite loops
@@ -233,7 +233,7 @@ export function getPreviousNonSkippedPage(
 export function getPreviousPage(
 	graph: FlowGraph,
 	currentPage: string,
-	state: FlowState,
+	state: FlowStateByPage,
 ): string | null {
 	const currentNode = getNode(graph, currentPage);
 	if (!currentNode) {

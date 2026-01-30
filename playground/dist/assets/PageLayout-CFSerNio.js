@@ -1,1 +1,0 @@
-import{j as t}from"./index-BETZax7Q.js";const s="40rem";function i({children:a}){return t.jsx("div",{className:"p-8",style:{width:s,maxWidth:"100%",marginLeft:"auto",marginRight:"auto"},children:t.jsx("div",{className:"space-y-6",children:a})})}export{i as P};

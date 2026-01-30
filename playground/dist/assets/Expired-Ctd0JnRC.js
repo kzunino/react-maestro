@@ -1,0 +1,1 @@
+import{j as s}from"./index-tkvl1eVf.js";import{P as e}from"./PageLayout-DnMQ0FZK.js";function o(){return s.jsxs(e,{children:[s.jsx("h2",{children:"Session expired"}),s.jsx("p",{children:"This wizard session has expired."})]})}export{o as default};

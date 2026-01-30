@@ -10,12 +10,12 @@ type ComponentLoader = () => Promise<{
 /**
  * Next page resolver - can be a string or a function
  */
-type NextPageResolver<TState = FlowState> = string | ((state: TState) => string | null);
+type NextPageResolver<TState = FlowStateByPage> = string | ((state: TState) => string | null);
 /**
  * Flow node definition
  * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
  */
-type FlowNode<TState = FlowState> = {
+type FlowNode<TState = FlowStateByPage> = {
     /**
      * Unique identifier for this page/step
      */
@@ -27,8 +27,8 @@ type FlowNode<TState = FlowState> = {
      */
     nextPage?: NextPageResolver<TState>;
     /**
-     * Optional previous page identifier. Used as fallback for hasPrevious and
-     * when resolving previous non-skipped pages. Back navigation uses browser
+     * Optional previous page identifier. Used when resolving previous non-skipped
+     * pages (e.g. skip chain). Back navigation uses browser
      * history by default.
      */
     previousPageFallback?: string;
@@ -41,9 +41,15 @@ type FlowNode<TState = FlowState> = {
     shouldSkip?: (state: TState) => boolean;
 };
 /**
- * Accumulated flow state from all steps
+ * State for a single page
  */
 type FlowState = Record<string, unknown>;
+/**
+ * Accumulated state from all steps, keyed by page.
+ * Each page has its own namespace, so the same key (e.g. "name") won't overwrite
+ * across pages. Use state.pageA.name and state.pageC.name for different values.
+ */
+type FlowStateByPage = Record<string, FlowState>;
 /**
  * Graph structure storing all flow nodes
  */
@@ -91,9 +97,11 @@ type FlowContextValue = {
      */
     currentPage: string | null;
     /**
-     * Current accumulated state from all steps
+     * Accumulated state from all pages, keyed by page (e.g. state.pageA, state.pageB).
+     * Same keys on different pages don't overwrite. Used by nextPage/shouldSkip.
+     * For page-local data in components, use stateKey() or getPageState(page).
      */
-    state: FlowState;
+    state: FlowStateByPage;
     /**
      * Navigate to the next page
      */
@@ -125,7 +133,8 @@ type FlowContextValue = {
      */
     updateStateBatch: (updates: Record<string, unknown>) => void;
     /**
-     * Get state for a specific page
+     * Get state for a specific page (page-scoped, no merge).
+     * Use this when you need another page's data or to avoid key collisions.
      */
     getPageState: (page: string) => FlowState;
     /**
@@ -140,10 +149,6 @@ type FlowContextValue = {
      * Check if there is a next page available
      */
     hasNext: () => boolean;
-    /**
-     * Check if there is a previous page available
-     */
-    hasPrevious: () => boolean;
     /**
      * Skip the current page and navigate to the next non-skipped page
      * This can be called from within a page component after loading
@@ -171,16 +176,92 @@ type FlowContextValue = {
 };
 /**
  * Return type of useFlow().
- * Extends FlowContextValue with stateKey helper and hasNext/hasPrevious as booleans.
+ * Extends FlowContextValue with stateKey helper and hasNext as boolean.
  */
-type UseFlowReturn = Omit<FlowContextValue, "hasNext" | "hasPrevious"> & {
-    /** Get [value, setValue] for a state key. */
+type UseFlowReturn = Omit<FlowContextValue, "hasNext"> & {
+    /** Get [value, setValue] for a state key. Page-scoped: each page has its own namespace, so keys like "name" or "email" won't collide across pages. */
     stateKey: <T = unknown>(key: string) => readonly [T | undefined, (value: T) => void];
     /** Whether there is a next page (resolved boolean). */
     hasNext: boolean;
-    /** Whether there is a previous page (resolved boolean). */
-    hasPrevious: boolean;
 };
+
+/**
+ * Configuration options for the Flow component
+ */
+type FlowConfig = {
+    /**
+     * Optional URL params adapter (defaults to browser query params implementation).
+     *
+     * Controls how the flow reads/writes URL parameters (page, id, etc.).
+     *
+     * - **Omit (default)**: Uses query params like `?page=pageA&id=xyz`
+     * - **Path-based URLs**: Pass `createPathParamsAdapter({ template: "/[id]/page/[page]" })`
+     *   to use path segments like `/test123/page/pageA`
+     * - **Framework adapters**: Use `createPathParamsAdapterFromProps` for Next.js/Remix
+     *   or create a custom adapter for other routing libraries
+     *
+     * @example
+     * ```ts
+     * // Query params (default - no adapter needed)
+     * <Flow graph={graph} /> // URLs: ?page=pageA&id=xyz
+     *
+     * // Path-based URLs
+     * const adapter = createPathParamsAdapter({ template: "/[id]/page/[page]" });
+     * <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />
+     * // URLs: /test123/page/pageA
+     * ```
+     */
+    urlParamsAdapter?: UrlParamsAdapter;
+    /**
+     * Optional URL parameter name for the current page (defaults to "page")
+     */
+    pageParamName?: string;
+    /**
+     * Optional URL parameter name for the flow UUID (defaults to "id")
+     */
+    uuidParamName?: string;
+    /**
+     * Optional callback when page changes. Receives the new page, previous page
+     * (null on initial load), and the accumulated state (merged from all pages).
+     * Fires on initial load and every navigation.
+     */
+    onPageChange?: (page: string | null, previousPage: string | null, state: FlowStateByPage) => void;
+    /**
+     * Whether to use the internal state system (session storage).
+     * Default: true. Set to false to use navigation only with no persisted state.
+     * When false, state is kept in memory only (lost on refresh).
+     */
+    enableState?: boolean;
+    /**
+     * Map of page identifiers to component loaders
+     * Each loader should return a promise that resolves to a component with a default export
+     */
+    componentLoaders?: Map<string, ComponentLoader>;
+};
+/**
+ * Props for the Flow component
+ */
+type FlowProps = {
+    /**
+     * The flow graph definition (nodes + component loaders)
+     */
+    graph: FlowGraph;
+    /**
+     * Optional configuration object
+     */
+    config?: FlowConfig;
+};
+declare function Flow({ graph, config }: FlowProps): react_jsx_runtime.JSX.Element | null;
+
+/**
+ * React context for flow state and navigation
+ */
+declare const FlowContext: react.Context<FlowContextValue | null>;
+/**
+ * Hook to access flow context
+ * Throws an error if used outside of Flow component
+ */
+declare function useFlowContext(): FlowContextValue;
 
 /**
  * Creates a new empty flow graph
@@ -202,34 +283,34 @@ declare function getNode(graph: FlowGraph, page: string): FlowNode | undefined;
 /**
  * Checks if a step should be skipped based on its shouldSkip function and current state
  */
-declare function shouldSkipStep(graph: FlowGraph, page: string, state: FlowState): boolean;
+declare function shouldSkipStep(graph: FlowGraph, page: string, state: FlowStateByPage): boolean;
 /**
  * Resolves the next page for a given node based on current state
  */
-declare function resolveNextPage(node: FlowNode, state: FlowState): string | null;
+declare function resolveNextPage(node: FlowNode, state: FlowStateByPage): string | null;
 /**
  * Recursively finds the next non-skipped page, preventing infinite loops
  */
-declare function getNextNonSkippedPage(graph: FlowGraph, page: string, state: FlowState, visited?: Set<string>): string | null;
+declare function getNextNonSkippedPage(graph: FlowGraph, page: string, state: FlowStateByPage, visited?: Set<string>): string | null;
 /**
  * Gets the next page for navigation (returns first page if multiple)
  * Automatically skips steps that should be skipped
  */
-declare function getNextPage(graph: FlowGraph, currentPage: string, state: FlowState): string | null;
+declare function getNextPage(graph: FlowGraph, currentPage: string, state: FlowStateByPage): string | null;
 /**
  * Gets the next page (returns as array for consistency with previous API)
  * @deprecated Consider using getNextPage instead
  */
-declare function getAllNextPages(graph: FlowGraph, currentPage: string, state: FlowState): string[];
+declare function getAllNextPages(graph: FlowGraph, currentPage: string, state: FlowStateByPage): string[];
 /**
  * Recursively finds the previous non-skipped page, preventing infinite loops
  */
-declare function getPreviousNonSkippedPage(graph: FlowGraph, page: string, state: FlowState, visited?: Set<string>): string | null;
+declare function getPreviousNonSkippedPage(graph: FlowGraph, page: string, state: FlowStateByPage, visited?: Set<string>): string | null;
 /**
  * Gets the previous page for a given node
  * Automatically skips over steps that should be skipped
  */
-declare function getPreviousPage(graph: FlowGraph, currentPage: string, state: FlowState): string | null;
+declare function getPreviousPage(graph: FlowGraph, currentPage: string, state: FlowStateByPage): string | null;
 /**
  * Validates that all referenced pages in the graph exist
  */
@@ -242,17 +323,6 @@ declare function validateGraph(graph: FlowGraph): {
  * Falls back to registration order if cycles exist
  */
 declare function getPagesInOrder(graph: FlowGraph): string[];
-
-/**
- * Single hook to access all flow functionality.
- * Use one import and destructure what you need.
- *
- * @example
- * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext, hasPrevious } = useFlow();
- * const [name, setName] = stateKey("name");
- * // goToPage(page) — jump to any node, preserve history (push). skipToPage(page) — same, replace (no back).
- */
-declare function useFlow(): UseFlowReturn;
 
 /**
  * Props for the Presenter component
@@ -349,6 +419,21 @@ declare function createPathParamsAdapter(config: PathConfig): UrlParamsAdapter;
 declare function createPathParamsAdapterFromProps(_pathParams: Record<string, string | string[]> | Promise<Record<string, string | string[]>>, config: PathConfig): UrlParamsAdapter;
 
 /**
+ * Single hook to access all flow functionality.
+ * Use one import and destructure what you need.
+ *
+ * stateKey is page-scoped: each page has its own namespace. Keys like "name" or "email"
+ * won't collide across pages. For cross-page data (e.g. routing), use `state` or
+ * `getPageState(page)`.
+ *
+ * @example
+ * const { goToNext, goToPrevious, goToPage, skipToPage, stateKey, currentPage, hasNext } = useFlow();
+ * const [name, setName] = stateKey("name");  // Page-specific; no collision with other pages
+ * // goToPage(page) — jump to any node, preserve history (push). skipToPage(page) — same, replace (no back).
+ */
+declare function useFlow(): UseFlowReturn;
+
+/**
  * Hook for managing URL parameters in a framework-agnostic way
  */
 declare function useUrlParams(adapter?: UrlParamsAdapter): {
@@ -360,80 +445,4 @@ declare function useUrlParams(adapter?: UrlParamsAdapter): {
     params: Record<string, string>;
 };
 
-/**
- * Configuration options for the Flow component
- */
-type FlowConfig = {
-    /**
-     * Optional URL params adapter (defaults to browser query params implementation).
-     *
-     * Controls how the flow reads/writes URL parameters (page, id, etc.).
-     *
-     * - **Omit (default)**: Uses query params like `?page=pageA&id=xyz`
-     * - **Path-based URLs**: Pass `createPathParamsAdapter({ template: "/[id]/page/[page]" })`
-     *   to use path segments like `/test123/page/pageA`
-     * - **Framework adapters**: Use `createPathParamsAdapterFromProps` for Next.js/Remix
-     *   or create a custom adapter for other routing libraries
-     *
-     * @example
-     * ```ts
-     * // Query params (default - no adapter needed)
-     * <Flow graph={graph} /> // URLs: ?page=pageA&id=xyz
-     *
-     * // Path-based URLs
-     * const adapter = createPathParamsAdapter({ template: "/[id]/page/[page]" });
-     * <Flow graph={graph} config={{ urlParamsAdapter: adapter }} />
-     * // URLs: /test123/page/pageA
-     * ```
-     */
-    urlParamsAdapter?: UrlParamsAdapter;
-    /**
-     * Optional URL parameter name for the current page (defaults to "page")
-     */
-    pageParamName?: string;
-    /**
-     * Optional URL parameter name for the flow UUID (defaults to "id")
-     */
-    uuidParamName?: string;
-    /**
-     * Optional callback when page changes
-     */
-    onPageChange?: (page: string | null, previousPage: string | null) => void;
-    /**
-     * Whether to use the internal state system (session storage).
-     * Default: true. Set to false to use navigation only with no persisted state.
-     * When false, state is kept in memory only (lost on refresh).
-     */
-    enableState?: boolean;
-    /**
-     * Map of page identifiers to component loaders
-     * Each loader should return a promise that resolves to a component with a default export
-     */
-    componentLoaders?: Map<string, ComponentLoader>;
-};
-/**
- * Props for the Flow component
- */
-type FlowProps = {
-    /**
-     * The flow graph definition (nodes + component loaders)
-     */
-    graph: FlowGraph;
-    /**
-     * Optional configuration object
-     */
-    config?: FlowConfig;
-};
-declare function Flow({ graph, config }: FlowProps): react_jsx_runtime.JSX.Element | null;
-
-/**
- * React context for flow state and navigation
- */
-declare const FlowContext: react.Context<FlowContextValue | null>;
-/**
- * Hook to access flow context
- * Throws an error if used outside of Flow component
- */
-declare function useFlowContext(): FlowContextValue;
-
-export { Flow, type FlowConfig, FlowContext, type FlowContextValue, type FlowGraph, type FlowNode, type FlowProps, type FlowState, type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, type UseFlowReturn, createFlowGraph, createPathParamsAdapter, createPathParamsAdapterFromProps, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, initializeFlow, registerNode, resolveNextPage, shouldSkipStep, useFlow, useFlowContext, useUrlParams, validateGraph };
+export { Flow, type FlowConfig, FlowContext, type FlowContextValue, type FlowGraph, type FlowNode, type FlowProps, type FlowState, type FlowStateByPage, type NextPageResolver, type PathConfig, Presenter, type PresenterProps, type UrlParamsAdapter, type UseFlowReturn, createFlowGraph, createPathParamsAdapter, createPathParamsAdapterFromProps, getAllNextPages, getNextNonSkippedPage, getNextPage, getNode, getPagesInOrder, getPreviousNonSkippedPage, getPreviousPage, initializeFlow, registerNode, resolveNextPage, shouldSkipStep, useFlow, useFlowContext, useUrlParams, validateGraph };

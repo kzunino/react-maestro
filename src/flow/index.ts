@@ -42,6 +42,7 @@ export type {
 	FlowGraph,
 	FlowNode,
 	FlowState,
+	FlowStateByPage,
 	NextPageResolver,
 	UrlParamsAdapter,
 	UseFlowReturn,

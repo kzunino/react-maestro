@@ -34,8 +34,9 @@ const nodes = [
   {
     currentPage: "step2",
     nextPage: (state) => {
-      // Conditional routing based on state
-      return state.userType === "premium" ? "premiumStep" : "standardStep";
+      // State is keyed by page: state.step2.userType, state.step1.name, etc.
+      const step2 = state.step2 as { userType?: string } | undefined;
+      return step2?.userType === "premium" ? "premiumStep" : "standardStep";
     },
   },
   {
@@ -107,8 +108,8 @@ function Step1() {
     pageParamName?: string, // default: "page"
     uuidParamName?: string, // default: "id"
     
-    // Optional: Callback when page changes
-    onPageChange?: (page: string | null, previousPage: string | null) => void,
+    // Optional: Callback when page changes (page, previousPage, state)
+    onPageChange?: (page: string | null, previousPage: string | null, state: FlowStateByPage) => void,
     
     // Optional: Use internal state (session storage). Default: true.
     // Set to false for navigation-only usage (state in memory, lost on refresh).
@@ -140,16 +141,16 @@ Each node in your graph can have:
 {
   currentPage: string; // Required: Unique page identifier
   
-  nextPage?: string | ((state: FlowState) => string | null);
+  nextPage?: string | ((state: FlowStateByPage) => string | null);
   // Optional: Next page(s). Can be:
   // - A string: "nextPageId"
-  // - A function: (state) => state.condition ? "pageA" : "pageB"
+  // - A function: (state) => state.pageB?.condition ? "pageA" : "pageB"
   
   previousPageFallback?: string;
   // Optional: Fallback when resolving previous non-skipped pages
   // (Back navigation uses browser history by default)
   
-  shouldSkip?: (state: FlowState) => boolean;
+  shouldSkip?: (state: FlowStateByPage) => boolean;
   // Optional: Skip this page if function returns true
   // Skipped pages are automatically bypassed
 }
@@ -163,7 +164,7 @@ The `useFlow` hook provides access to all flow functionality:
 const {
   // Current state
   currentPage: string | null,
-  state: FlowState, // Accumulated state from all pages
+  state: FlowStateByPage, // Accumulated state keyed by page (no overwrite)
   
   // Navigation
   goToNext: () => void,
@@ -215,8 +216,8 @@ updateStateBatch({ name: "John", email: "john@example.com" });
 #### Getting State
 
 ```tsx
-// Get all accumulated state
-const allState = state; // { name: "John", email: "...", ... }
+// Accumulated state is keyed by page (no overwrite across pages)
+const allState = state; // { step1: { name: "John" }, step2: { email: "..." }, ... }
 
 // Get state for a specific page
 const step1State = getPageState("step1");
@@ -319,8 +320,9 @@ const nodes = [
   {
     currentPage: "checkout",
     nextPage: (state) => {
-      if (state.paymentMethod === "credit") return "creditCardForm";
-      if (state.paymentMethod === "paypal") return "paypalFlow";
+      const checkout = state.checkout as { paymentMethod?: string } | undefined;
+      if (checkout?.paymentMethod === "credit") return "creditCardForm";
+      if (checkout?.paymentMethod === "paypal") return "paypalFlow";
       return "paymentSelection";
     },
   },
@@ -333,7 +335,10 @@ const nodes = [
 const nodes = [
   {
     currentPage: "optionalStep",
-    shouldSkip: (state) => !state.needsOptionalStep,
+    shouldSkip: (state) => {
+      const intro = state.intro as { needsOptionalStep?: boolean } | undefined;
+      return !intro?.needsOptionalStep;
+    },
     nextPage: "nextStep",
   },
 ];
@@ -341,14 +346,17 @@ const nodes = [
 
 ### Page Change Callback
 
+`onPageChange` receives the new page, previous page, and accumulated state. It fires on initial load (with `previousPage` as `null`) and on every navigation. Use it to sync parent state or track analytics:
+
 ```tsx
 <Flow
   graph={graph}
   config={{
     componentLoaders,
-    onPageChange: (newPage, previousPage) => {
-      // Track analytics, update UI, etc.
+    onPageChange: (newPage, previousPage, state) => {
+      setCurrentPage(newPage);           // Sync with parent state
       analytics.track("page_view", { page: newPage });
+      // state is merged from all pages - use for summaries, etc.
     },
   }}
 />
@@ -377,7 +385,7 @@ function CompletePage() {
 #### `FlowNode<TState>`
 
 ```tsx
-type FlowNode<TState = FlowState> = {
+type FlowNode<TState = FlowStateByPage> = {
   currentPage: string;
   nextPage?: string | ((state: TState) => string | null);
   previousPageFallback?: string;
@@ -401,7 +409,7 @@ type FlowConfig = {
   urlParamsAdapter?: UrlParamsAdapter;
   pageParamName?: string; // default: "page"
   uuidParamName?: string; // default: "id"
-  onPageChange?: (page: string | null, previousPage: string | null) => void;
+  onPageChange?: (page: string | null, previousPage: string | null, state: FlowStateByPage) => void;
   enableState?: boolean; // default: true
   componentLoaders: Map<string, ComponentLoader>;
 };

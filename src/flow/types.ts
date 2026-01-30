@@ -6,7 +6,7 @@ export type ComponentLoader = () => Promise<{ default: React.ComponentType }>;
 /**
  * Next page resolver - can be a string or a function
  */
-export type NextPageResolver<TState = FlowState> =
+export type NextPageResolver<TState = FlowStateByPage> =
 	| string
 	| ((state: TState) => string | null);
 
@@ -14,7 +14,7 @@ export type NextPageResolver<TState = FlowState> =
  * Flow node definition
  * @template TState - The type of state for this page (used to type the `nextPage` and `shouldSkip` functions)
  */
-export type FlowNode<TState = FlowState> = {
+export type FlowNode<TState = FlowStateByPage> = {
 	/**
 	 * Unique identifier for this page/step
 	 */
@@ -44,9 +44,16 @@ export type FlowNode<TState = FlowState> = {
 };
 
 /**
- * Accumulated flow state from all steps
+ * State for a single page
  */
 export type FlowState = Record<string, unknown>;
+
+/**
+ * Accumulated state from all steps, keyed by page.
+ * Each page has its own namespace, so the same key (e.g. "name") won't overwrite
+ * across pages. Use state.pageA.name and state.pageC.name for different values.
+ */
+export type FlowStateByPage = Record<string, FlowState>;
 
 /**
  * Graph structure storing all flow nodes
@@ -103,11 +110,11 @@ export type FlowContextValue = {
 	currentPage: string | null;
 
 	/**
-	 * Merged state from all pages (later pages override earlier).
-	 * Used by nextPage/shouldSkip for conditional routing.
-	 * For page-local data, use stateKey() or getPageState(page).
+	 * Accumulated state from all pages, keyed by page (e.g. state.pageA, state.pageB).
+	 * Same keys on different pages don't overwrite. Used by nextPage/shouldSkip.
+	 * For page-local data in components, use stateKey() or getPageState(page).
 	 */
-	state: FlowState;
+	state: FlowStateByPage;
 
 	/**
 	 * Navigate to the next page

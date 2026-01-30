@@ -36,11 +36,11 @@ describe("graphHelpers", () => {
 	it("resolveNextPage evaluates function nextPage with state", () => {
 		const node = {
 			currentPage: "a",
-			nextPage: (state: Record<string, unknown>) =>
-				state.x === "y" ? "b" : "c",
+			nextPage: (state: Record<string, Record<string, unknown>>) =>
+				(state.a?.x as string) === "y" ? "b" : "c",
 		};
-		expect(resolveNextPage(node, { x: "y" })).toBe("b");
-		expect(resolveNextPage(node, { x: "z" })).toBe("c");
+		expect(resolveNextPage(node, { a: { x: "y" } })).toBe("b");
+		expect(resolveNextPage(node, { a: { x: "z" } })).toBe("c");
 	});
 
 	it("validateGraph reports invalid entry point", () => {
@@ -65,14 +65,15 @@ describe("graphHelpers", () => {
 				{
 					currentPage: "b",
 					nextPage: "c",
-					shouldSkip: (s: Record<string, unknown>) => s.skipB === true,
+					shouldSkip: (s: Record<string, Record<string, unknown>>) =>
+						s.b?.skipB === true,
 				},
 				{ currentPage: "c" },
 			],
 			"a",
 		);
 		expect(getNextPage(graph, "a", {})).toBe("b");
-		expect(getNextPage(graph, "a", { skipB: true })).toBe("c");
+		expect(getNextPage(graph, "a", { b: { skipB: true } })).toBe("c");
 	});
 
 	it("getPreviousPage returns previousPageFallback and follows skip chain", () => {
@@ -83,14 +84,15 @@ describe("graphHelpers", () => {
 					currentPage: "b",
 					previousPageFallback: "a",
 					nextPage: "c",
-					shouldSkip: (s: Record<string, unknown>) => s.skipB === true,
+					shouldSkip: (s: Record<string, Record<string, unknown>>) =>
+						s.b?.skipB === true,
 				},
 				{ currentPage: "c", previousPageFallback: "b" },
 			],
 			"a",
 		);
 		expect(getPreviousPage(graph, "c", {})).toBe("b");
-		expect(getPreviousPage(graph, "c", { skipB: true })).toBe("a");
+		expect(getPreviousPage(graph, "c", { b: { skipB: true } })).toBe("a");
 	});
 
 	it("shouldSkipStep returns true when node.shouldSkip returns true", () => {
@@ -98,12 +100,13 @@ describe("graphHelpers", () => {
 			{
 				currentPage: "a",
 				nextPage: "b",
-				shouldSkip: (s: Record<string, unknown>) => s.skip === true,
+				shouldSkip: (s: Record<string, Record<string, unknown>>) =>
+					s.a?.skip === true,
 			},
 			{ currentPage: "b" },
 		]);
 		expect(shouldSkipStep(graph, "a", {})).toBe(false);
-		expect(shouldSkipStep(graph, "a", { skip: true })).toBe(true);
+		expect(shouldSkipStep(graph, "a", { a: { skip: true } })).toBe(true);
 	});
 
 	it("getPagesInOrder returns pages from entry point", () => {

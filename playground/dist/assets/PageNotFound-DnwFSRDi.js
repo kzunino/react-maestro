@@ -1,0 +1,1 @@
+import{j as e}from"./index-tkvl1eVf.js";import{P as o}from"./PageLayout-DnMQ0FZK.js";function s(){return e.jsxs(o,{children:[e.jsx("h2",{children:"Page not found"}),e.jsx("p",{children:"The requested page does not exist."})]})}export{s as default};

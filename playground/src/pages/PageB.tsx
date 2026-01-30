@@ -6,6 +6,7 @@ export default function PageB() {
 	const { goToNext, goToPrevious, currentPage, stateKey } = useFlow();
 	const [email, setEmail] = stateKey<string>("email");
 	const [userType, setUserType] = stateKey<string>("userType");
+	const [skipDetails, setSkipDetails] = stateKey<boolean>("skipDetails");
 	const [name] = stateKey<string>("name");
 
 	return (
@@ -46,6 +47,18 @@ export default function PageB() {
 						<option value="premium">Premium</option>
 					</select>
 				</div>
+
+				{userType === "standard" && (
+					<label className="flex items-center space-x-2">
+						<input
+							type="checkbox"
+							checked={skipDetails || false}
+							onChange={(e) => setSkipDetails(e.target.checked)}
+							className="w-4 h-4"
+						/>
+						<span>Skip details step (go straight to summary)</span>
+					</label>
+				)}
 			</div>
 
 			<div className="flex justify-between">
@@ -65,7 +78,9 @@ export default function PageB() {
 					{userType === "premium"
 						? "You'll be routed to Page E (Premium Feature)"
 						: userType === "standard"
-							? "You'll be routed to Page C (Standard Flow)"
+							? skipDetails
+								? "You'll skip Page C and go straight to Page D"
+								: "You'll be routed to Page C (Details), then Page D"
 							: "Select a user type to see routing"}
 				</p>
 			</div>

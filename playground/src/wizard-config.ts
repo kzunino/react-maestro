@@ -16,8 +16,12 @@ const nodes: FlowNode[] = [
 	},
 	{
 		currentPage: Page.PageB,
+		// Conditional routing: premium → E, standard → C (or D if skipDetails)
+		// State is keyed by page: state.pageB.userType, state.pageA.name, etc.
 		nextPage: (state) => {
-			if (state.userType === "premium") return Page.PageE;
+			const pageB = state.pageB as Record<string, unknown> | undefined;
+			if (pageB?.userType === "premium") return Page.PageE;
+			if (pageB?.skipDetails === true) return Page.PageD;
 			return Page.PageC;
 		},
 	},
@@ -25,10 +29,14 @@ const nodes: FlowNode[] = [
 		currentPage: Page.PageC,
 		previousPageFallback: Page.PageB,
 		nextPage: Page.PageD,
+		shouldSkip: (state) => {
+			const pageB = state.pageB as Record<string, unknown> | undefined;
+			return pageB?.skipDetails === true;
+		},
 	},
 	{
 		currentPage: Page.PageD,
-		previousPageFallback: Page.PageC,
+		previousPageFallback: Page.PageB, // Back from D goes to B (skipped C doesn't appear in history)
 	},
 	{
 		currentPage: Page.PageE,
