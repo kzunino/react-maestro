@@ -62,15 +62,14 @@ export default function App() {
 	const [flowState, setFlowState] = useState<FlowStateByPage>({});
 
 	const handlePageChange = useCallback(
-		(page: string | null, previousPage: string | null, state: FlowStateByPage) => {
+		(
+			page: string | null,
+			previousPage: string | null,
+			state: FlowStateByPage,
+		) => {
 			setFlowPage(page);
 			setFlowPreviousPage(previousPage);
 			setFlowState(state ?? {});
-			console.log("[onPageChange]", {
-				page,
-				previousPage,
-				state,
-			});
 		},
 		[],
 	);
@@ -150,10 +149,9 @@ export default function App() {
 						<strong>onPageChange:</strong> page=
 						{flowPage ?? graph.entryPoint ?? "—"} | previous=
 						{flowPreviousPage ?? "null"}
-						{flowState != null &&
-							Object.keys(flowState).length > 0 && (
-								<> | state={JSON.stringify(flowState)}</>
-							)}
+						{flowState != null && Object.keys(flowState).length > 0 && (
+							<> | state={JSON.stringify(flowState)}</>
+						)}
 					</div>
 				</div>
 				<Flow
