@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { FlowStateByPage } from "react-maestro";
-import { createPathParamsAdapter, Flow } from "react-maestro";
+import type { FlowStateByPage } from "react-flow-kit";
+import { createPathParamsAdapter, Flow } from "react-flow-kit";
 import Landing from "./pages/Landing";
 import { componentLoaders, graph } from "./wizard-config";
 

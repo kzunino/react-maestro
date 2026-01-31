@@ -1,5 +1,5 @@
 {
-	"name": "react-maestro-playground",
+	"name": "react-flow-kit-playground",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -11,7 +11,7 @@
 	"dependencies": {
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
-		"react-maestro": "file:.."
+		"react-flow-kit": "file:.."
 	},
 	"devDependencies": {
 		"@types/react": "^18.3.12",

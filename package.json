@@ -1,5 +1,5 @@
 {
-	"name": "react-maestro",
+	"name": "react-flow-kit",
 	"author": "Kyle <kzunino@gmail.com>",
 	"version": "0.5.1",
 	"description": "Stateful, branching workflow orchestration for React.",
