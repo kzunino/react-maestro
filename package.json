@@ -1,6 +1,6 @@
 {
 	"name": "react-maestro",
-	"version": "0.0.1",
+	"version": "0.5.0",
 	"description": "Stateful, branching workflow orchestration for React.",
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
@@ -45,7 +45,6 @@
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"tsup": "^8.5.1",
-		"typescript": "~5.6.2",
 		"vitest": "^2.1.6"
 	},
 	"type": "module"
