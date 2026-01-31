@@ -37,11 +37,11 @@
 	"license": "ISC",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/kylezunino/react-maestro"
+		"url": "git+https://github.com/kylezunino/react-flow-kit.git"
 	},
-	"homepage": "https://github.com/kylezunino/react-maestro#readme",
+	"homepage": "https://github.com/kylezunino/react-flow-kit#readme",
 	"bugs": {
-		"url": "https://github.com/kylezunino/react-maestro/issues"
+		"url": "https://github.com/kylezunino/react-flow-kit/issues"
 	},
 	"peerDependencies": {
 		"react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
