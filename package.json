@@ -1,7 +1,7 @@
 {
 	"name": "react-flow-kit",
 	"author": "Kyle <kzunino@gmail.com>",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"description": "Stateful, branching workflow orchestration for React.",
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
